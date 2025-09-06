@@ -14,10 +14,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 // 訂單暫存（測試用）
 let orders = [];
 
-// 模擬管理員帳密
-const ADMIN_USER = "admin";
-const ADMIN_PASS = "12345678";
-
 // POST /api/order - 接收訂單
 app.post('/api/order', (req, res) => {
   try {
@@ -25,20 +21,18 @@ app.post('/api/order', (req, res) => {
     if (!seat || !items) {
       return res.status(400).json({ success: false, message: '座號或訂單資料缺失' });
     }
-    orders.push({ seat, items, createdAt: new Date() });
-    res.json({ success: true, message: '訂單已送出，請至歷史訂單頁面確認！' });
+
+    // 將每個 item 加入 day
+    const itemsWithDay = items.map((item, index) => ({
+      typeName: item.typeName,
+      quantity: item.quantity || 1,
+      day: ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"][index]
+    }));
+
+    orders.push({ seat, items: itemsWithDay, createdAt: new Date() });
+    res.json({ success: true, message: '訂單已送出' });
   } catch (err) {
     res.status(500).json({ success: false, message: '伺服器錯誤', error: err.message });
-  }
-});
-
-// POST /api/admin/login - 管理員登入
-app.post('/api/admin/login', (req, res) => {
-  const { user, pass } = req.body;
-  if (user === ADMIN_USER && pass === ADMIN_PASS) {
-    res.json({ success: true, message: "登入成功" });
-  } else {
-    res.status(401).json({ success: false, message: "帳號或密碼錯誤" });
   }
 });
 
@@ -50,15 +44,15 @@ app.get('/api/orders', (req, res) => {
 // DELETE /api/orders - 刪除指定座號訂單
 app.delete('/api/orders', (req, res) => {
   const { seat } = req.body;
-  if (!seat) return res.status(400).json({ success: false, message: "缺少座號" });
+  if (!seat) return res.status(400).json({ success: false, message: '請提供座號' });
   orders = orders.filter(o => o.seat !== seat);
-  res.json({ success: true, message: `已刪除座號 ${seat} 的訂單` });
+  res.json({ success: true, message: '已刪除該座號訂單' });
 });
 
 // DELETE /api/orders/all - 刪除全部訂單
 app.delete('/api/orders/all', (req, res) => {
   orders = [];
-  res.json({ success: true, message: "已刪除全部訂單" });
+  res.json({ success: true, message: '全部訂單已刪除' });
 });
 
 // 啟動伺服器
