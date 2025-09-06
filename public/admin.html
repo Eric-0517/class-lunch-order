@@ -118,8 +118,10 @@ function loadOrders(){
 function renderAllOrders(orders){
   const seatMap = {};
   orders.forEach(o=>{
-    if(!seatMap[o.座號]) seatMap[o.座號]=[];
-    seatMap[o.座號].push(o);
+    if(!seatMap[o.seat]) seatMap[o.seat]=[];
+    o.items.forEach(item=>{
+      seatMap[o.seat].push(item);
+    });
   });
 
   let html = `<table>
@@ -135,9 +137,9 @@ function renderAllOrders(orders){
     const items = seatMap[seat];
     const counts = {};
     items.forEach(i=>{
-      counts[i.品項] = (counts[i.品項]||0)+1;
+      counts[i.typeName] = (counts[i.typeName]||0)+i.quantity;
     });
-    const totalPrice = items.reduce((sum,i)=>(i.品項==="今日不訂購"?0:70)+sum,0);
+    const totalPrice = items.reduce((sum,i)=>(i.typeName==="今日不訂購"?0:70*i.quantity)+sum,0);
     let first = true;
     for(let type in counts){
       html += `<tr>
@@ -201,17 +203,28 @@ deleteAllBtn.addEventListener("click", ()=>{
 });
 
 // 下拉選單每日統計
-daySelect.addEventListener("change", ()=>{
+daySelect.addEventListener("change", ()=> {
   const day = daySelect.value;
-  if(!day){ dailyStatsResult.innerHTML=""; return; }
+  if(!day){ 
+    dailyStatsResult.innerHTML=""; 
+    return; 
+  }
 
-  const dayOrders = allOrders.filter(o=>o.day===day);
+  const dayOrders = allOrders.filter(o => {
+    return o.items.some(i => i.day === day);
+  });
+
   const counts = {};
-  mealTypes.forEach(t=>counts[t]=0);
+  mealTypes.forEach(t => counts[t] = 0);
   let totalAmount = 0;
-  dayOrders.forEach(o=>{
-    counts[o.品項] = (counts[o.品項]||0)+1;
-    if(o.品項!=="今日不訂購") totalAmount +=70;
+
+  dayOrders.forEach(o => {
+    o.items.forEach(i => {
+      if(i.day === day){
+        counts[i.typeName] = (counts[i.typeName] || 0) + i.quantity;
+        if(i.typeName !== "今日不訂購") totalAmount += 70 * i.quantity;
+      }
+    });
   });
 
   let html = `<h3>${day} 訂單統計</h3>`;
