@@ -1,237 +1,107 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta charset="UTF-8">
-<title>後台管理 - 國二一便當訂購系統</title>
-<link rel="stylesheet" href="./style.css">
-<style>
-body { font-family: Arial, sans-serif; background:#0b0f14; color:#cfe9ff; margin:0; padding:20px; }
-header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111824; }
-.logo { font-size:1.5em; font-weight:bold; }
-button, .admin-link { cursor:pointer; color:#cfe9ff; background:none; border:none; text-decoration:none; font-size:1em; }
-input, select { margin:5px 0; padding:5px; border-radius:4px; border:1px solid #37b7ff; background:#111824; color:#cfe9ff; }
-#loginBtn { background:#37b7ff; color:#0b0f14; border:none; padding:8px 16px; border-radius:6px; margin-top:10px; }
-#loginBtn:hover { background:#2a9edb; }
-.delete-btn { background:red; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
-.delete-btn:hover { background:#a80000; }
-table { border-collapse: collapse; width:100%; margin-top:15px; }
-th, td { border:1px solid #37b7ff; padding:5px; text-align:center; }
-#dailyStatsSection { margin-top:30px; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>歷史訂單查詢</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: Arial, sans-serif; background:#0b0f14; color:#cfe9ff; margin:0; }
+    header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111824; position:relative; z-index:1000; }
+    .logo { font-size:1.5em; font-weight:bold; }
+    button, .home-link { cursor:pointer; color:#cfe9ff; background:none; border:none; text-decoration:none; font-size:1em; }
+    main { padding:20px; }
+    table { width:100%; border-collapse:collapse; margin-top:20px; }
+    th, td { border:1px solid #37b7ff; padding:8px; text-align:center; }
+    th { background:#111824; }
+    .delete-btn { background:red; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
+    .delete-btn:hover { background:#a80000; }
+  </style>
 </head>
 <body>
+  <header>
+    <a href="index.html" class="home-link">⬅ 返回首頁</a>
+    <div class="logo">歷史訂單查詢</div>
+  </header>
 
-<header>
-  <div class="logo">後台管理 - 國二一便當訂購系統</div>
-  <a href="./index.html" class="admin-link">返回前台</a>
-</header>
+  <main>
+    <h2>訂單紀錄</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>座號</th>
+          <th>品項</th>
+          <th>數量</th>
+          <th>總金額</th>
+        </tr>
+      </thead>
+      <tbody id="orders-table">
+        <tr><td colspan="4">載入中...</td></tr>
+      </tbody>
+    </table>
+  </main>
 
-<main>
-  <div id="loginSection">
-    <h2>管理員登入</h2>
-    <input type="text" id="adminUser" placeholder="帳號"><br>
-    <input type="password" id="adminPass" placeholder="密碼"><br>
-    <button id="loginBtn">登入</button>
-    <div id="loginMsg" style="color:red; margin-top:10px;"></div>
-  </div>
+  <script>
+    const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨A","悦馨B","今日不訂購"];
 
-  <div id="adminPanel" style="display:none;">
-    <h2>所有訂單統計</h2>
-    <div id="statsResult"></div>
+    async function loadOrders(){
+      try{
+        const res = await fetch('/api/orders');
+        const data = await res.json();
+        const tbody = document.getElementById('orders-table');
+        tbody.innerHTML = '';
 
-    <div id="dailyStatsSection">
-      <h2>每日訂單統計</h2>
-      <label>選擇禮拜：
-        <select id="daySelect">
-          <option value="">請選擇</option>
-          <option value="禮拜一">禮拜一</option>
-          <option value="禮拜二">禮拜二</option>
-          <option value="禮拜三">禮拜三</option>
-          <option value="禮拜四">禮拜四</option>
-          <option value="禮拜五">禮拜五</option>
-        </select>
-      </label>
-      <div id="dailyStatsResult" style="margin-top:15px;"></div>
-    </div>
+        if(data.success && data.data.length){
+          // 先把訂單依座號整理
+          const seatMap = {};
+          data.data.forEach(order => {
+            const seat = order.seat;
+            if(!seatMap[seat]) seatMap[seat] = [];
+            seatMap[seat].push(order);
+          });
 
-    <button id="deleteAllBtn" class="delete-btn" style="margin-top:15px;">刪除全部訂單</button>
-  </div>
-</main>
+          Object.keys(seatMap).forEach(seat => {
+            const orders = seatMap[seat];
+            // 計算各品項數量
+            const counts = {};
+            mealTypes.forEach(t=>counts[t]=0);
+            let totalAmount = 0;
+            orders.forEach(o=>{
+              o.items.forEach(item=>{
+                counts[item.typeName] = (counts[item.typeName]||0)+1;
+                if(item.typeName!=="今日不訂購") totalAmount +=70;
+              });
+            });
 
-<script>
-const loginSection = document.getElementById("loginSection");
-const adminPanel = document.getElementById("adminPanel");
-const loginBtn = document.getElementById("loginBtn");
-const loginMsg = document.getElementById("loginMsg");
-const statsResult = document.getElementById("statsResult");
-const daySelect = document.getElementById("daySelect");
-const dailyStatsResult = document.getElementById("dailyStatsResult");
-const deleteAllBtn = document.getElementById("deleteAllBtn");
+            // 將非零品項列出
+            const nonZeroItems = mealTypes.filter(t=>counts[t]>0);
 
-const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨A","悦馨B","今日不訂購"];
-let allOrders = []; // 全部訂單暫存
+            nonZeroItems.forEach((type, index)=>{
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                ${index===0?`<td rowspan="${nonZeroItems.length}">${seat}</td>`:""}
+                <td>${type}</td>
+                <td>${counts[type]}</td>
+                ${index===0?`<td rowspan="${nonZeroItems.length}">${totalAmount}</td>`:""}
+              `;
+              tbody.appendChild(tr);
+            });
 
-// 登入功能
-loginBtn.addEventListener("click", () => {
-  const username = document.getElementById("adminUser").value;
-  const password = document.getElementById("adminPass").value;
+          });
 
-  fetch("/api/admin/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user: username, pass: password })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if(data.success){
-      loginSection.style.display="none";
-      adminPanel.style.display="block";
-      loginMsg.textContent="";
-      loadOrders();
-    } else {
-      loginMsg.textContent="帳號或密碼錯誤";
-    }
-  })
-  .catch(err => {
-    loginMsg.textContent="登入失敗：" + err.message;
-  });
-});
-
-// 載入所有訂單
-function loadOrders(){
-  fetch("/api/orders")
-    .then(res=>res.json())
-    .then(data=>{
-      if(data.success){
-        allOrders = data.data;
-        renderAllOrders(allOrders);
-      } else {
-        statsResult.innerHTML=`<div style="color:red">${data.message}</div>`;
-      }
-    })
-    .catch(err=>{
-      statsResult.innerHTML=`<div style="color:red">載入失敗：${err.message}</div>`;
-    });
-}
-
-// 渲染所有訂單統計
-function renderAllOrders(orders){
-  const seatMap = {};
-  orders.forEach(o=>{
-    if(!seatMap[o.seat]) seatMap[o.seat]=[];
-    seatMap[o.seat].push(o);
-  });
-
-  let html = `<table>
-    <tr>
-      <th>座號</th>
-      <th>品項</th>
-      <th>數量</th>
-      <th>總金額</th>
-      <th>操作</th>
-    </tr>`;
-
-  Object.keys(seatMap).forEach(seat=>{
-    const items = seatMap[seat];
-    const counts = {};
-    items.forEach(order=>{
-      order.items.forEach(i=>{
-        counts[i.typeName] = (counts[i.typeName]||0)+1;
-      });
-    });
-    const totalPrice = Object.keys(counts).reduce((sum,type)=>{
-      return sum + (type==="今日不訂購"?0:70)*counts[type];
-    },0);
-
-    let first = true;
-    for(let type in counts){
-      html += `<tr>
-        ${first?`<td rowspan="${Object.keys(counts).length}">${seat}</td>`:""}
-        <td>${type}</td>
-        <td>${counts[type]}</td>
-        ${first?`<td rowspan="${Object.keys(counts).length}">${totalPrice}</td>`:""}
-        ${first?`<td rowspan="${Object.keys(counts).length}"><button class="delete-btn" data-seat="${seat}">刪除</button></td>`:""}
-      </tr>`;
-      first=false;
-    }
-  });
-
-  html += `</table>`;
-  statsResult.innerHTML = html;
-
-  bindDeleteButtons();
-}
-
-// 綁定刪除按鈕
-function bindDeleteButtons(){
-  document.querySelectorAll(".delete-btn").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      const seat = btn.dataset.seat;
-      if(confirm(`確認刪除座號 ${seat} 的所有訂單？`)){
-        fetch("/api/orders", {
-          method:"DELETE",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({seat})
-        })
-        .then(res=>res.json())
-        .then(d=>{
-          if(d.success){
-            alert("刪除成功");
-            loadOrders();
-            dailyStatsResult.innerHTML="";
-          } else {
-            alert(d.message);
-          }
-        });
-      }
-    });
-  });
-}
-
-// 刪除全部訂單
-deleteAllBtn.addEventListener("click", ()=>{
-  if(confirm("確認刪除全部訂單？")){
-    fetch("/api/orders/all", { method:"DELETE" })
-      .then(res=>res.json())
-      .then(d=>{
-        if(d.success){
-          alert("全部訂單已刪除");
-          loadOrders();
-          dailyStatsResult.innerHTML="";
         } else {
-          alert(d.message);
+          tbody.innerHTML = '<tr><td colspan="4">目前沒有資料</td></tr>';
         }
-      });
-  }
-});
-
-// ✅ 修改後每日訂單統計
-daySelect.addEventListener("change", ()=>{
-  const day = daySelect.value;
-  if(!day){ dailyStatsResult.innerHTML=""; return; }
-
-  const counts = {};
-  mealTypes.forEach(t=>counts[t]=0);
-  let totalAmount = 0;
-
-  allOrders.forEach(order=>{
-    const item = order.items.find(i=>i.day===day);
-    if(item){
-      counts[item.typeName] = (counts[item.typeName]||0)+1;
-      if(item.typeName !== "今日不訂購") totalAmount +=70;
+      }catch(err){
+        console.error(err);
+        document.getElementById('orders-table').innerHTML =
+          '<tr><td colspan="4">載入失敗</td></tr>';
+      }
     }
-  });
 
-  let html = `<h3>${day} 訂單統計</h3>`;
-  html += `<table>
-    <tr>${mealTypes.map(t=>`<th>${t}</th>`).join('')}<th>總金額</th></tr>
-    <tr>${mealTypes.map(t=>`<td>${counts[t]}</td>`).join('')}<td>${totalAmount}</td></tr>
-  </table>`;
-
-  dailyStatsResult.innerHTML = html;
-});
-</script>
-<footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
+    loadOrders();
+  </script>
+  <footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
   ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
 </footer>
 </body>
