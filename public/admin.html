@@ -2,7 +2,6 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>後台管理 - 國二一便當訂購系統</title>
 <link rel="stylesheet" href="./style.css">
 <style>
@@ -10,15 +9,12 @@ body { font-family: Arial, sans-serif; background:#0b0f14; color:#cfe9ff; margin
 header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111824; }
 .logo { font-size:1.5em; font-weight:bold; }
 button, .admin-link { cursor:pointer; color:#cfe9ff; background:none; border:none; text-decoration:none; font-size:1em; }
-input, select { margin:5px 0; padding:5px; border-radius:4px; border:1px solid #37b7ff; background:#111824; color:#cfe9ff; }
-#loginBtn { background:#37b7ff; color:#0b0f14; border:none; padding:8px 16px; border-radius:6px; margin-top:10px; }
-#loginBtn:hover { background:#2a9edb; }
 .delete-btn { background:red; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
 .delete-btn:hover { background:#a80000; }
 table { border-collapse: collapse; width:100%; margin-top:15px; }
 th, td { border:1px solid #37b7ff; padding:5px; text-align:center; }
 #dailyStatsSection { margin-top:30px; }
-.footer-note { margin-top:40px; font-size:0.8em; color:#999; }
+footer { margin-top:30px; font-size:0.8em; color:#888; }
 </style>
 </head>
 <body>
@@ -48,7 +44,6 @@ th, td { border:1px solid #37b7ff; padding:5px; text-align:center; }
 
     <button id="deleteAllBtn" class="delete-btn" style="margin-top:15px;">刪除全部訂單</button>
   </div>
-
 </main>
 
 <script>
@@ -96,23 +91,19 @@ function loadOrders(){
     .then(data=>{
       if(data.success){
         allOrders = data.data;
-        renderAllOrders(allOrders);
-        renderDailyStats(); // 每日統計直接顯示
-      } else {
-        statsResult.innerHTML=`<div style="color:red">${data.message}</div>`;
+        renderAllOrders(allOrders);  // 全部訂單統計
+        renderDailyStats();          // 每日統計
       }
-    })
-    .catch(err=>{
-      statsResult.innerHTML=`<div style="color:red">載入失敗：${err.message}</div>`;
     });
 }
 
-// 渲染所有訂單統計
+// 渲染所有訂單統計（保持原樣）
 function renderAllOrders(orders){
   const seatMap = {};
   orders.forEach(o=>{
-    if(!seatMap[o.seat]) seatMap[o.seat]=[];
-    seatMap[o.seat].push(o);
+    const seat = o.seat;
+    if(!seatMap[seat]) seatMap[seat]=[];
+    seatMap[seat].push(o);
   });
 
   let html = `<table>
@@ -132,9 +123,7 @@ function renderAllOrders(orders){
         counts[it.typeName] = (counts[it.typeName]||0)+1;
       });
     });
-    const totalPrice = items.reduce((sum,i)=>
-      sum + i.items.reduce((s,it)=>it.typeName==="今日不訂購"?s:s+70,0)
-    ,0);
+    const totalPrice = Object.keys(counts).reduce((sum,type)=>type!=="今日不訂購"?sum+counts[type]*70:sum,0);
     let first = true;
     for(let type in counts){
       html += `<tr>
@@ -195,9 +184,7 @@ deleteAllBtn.addEventListener("click", ()=>{
   }
 });
 
-// --------------------------
-// 每日訂單統計 - 直接顯示每日各品項數量與當日總金額
-// --------------------------
+// 每日統計 - 每天單獨計算
 function renderDailyStats(){
   if(allOrders.length===0){
     dailyStatsResult.innerHTML = "<p>目前沒有資料</p>";
@@ -208,19 +195,18 @@ function renderDailyStats(){
   let html = "";
 
   dayNames.forEach(day=>{
-    // 過濾該天的訂單
-    const dayOrders = allOrders.filter(o=>o.items.some(it=>it.day===day));
+    // 只取該天的訂單
+    const dayOrders = allOrders.map(o=>{
+      return o.items.filter(it=>it.day===day).map(it=>({typeName: it.typeName}));
+    }).flat();
 
     const counts = {};
     mealTypes.forEach(t=>counts[t]=0);
     let totalAmount = 0;
 
     dayOrders.forEach(o=>{
-      const itemForDay = o.items.find(it=>it.day===day);
-      if(itemForDay){
-        counts[itemForDay.typeName] += 1;
-        if(itemForDay.typeName !== "今日不訂購") totalAmount += 70;
-      }
+      counts[o.typeName] = (counts[o.typeName]||0)+1;
+      if(o.typeName!=="今日不訂購") totalAmount +=70;
     });
 
     html += `<h3>${day}</h3>`;
