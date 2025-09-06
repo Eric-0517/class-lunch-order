@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>歷史訂單查詢</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: Arial, sans-serif; background:#0b0f14; color:#cfe9ff; margin:0; }
+    header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111824; position:relative; z-index:1000; }
+    .logo { font-size:1.5em; font-weight:bold; }
+    button, .home-link { cursor:pointer; color:#cfe9ff; background:none; border:none; text-decoration:none; font-size:1em; }
+    main { padding:20px; }
+    table { width:100%; border-collapse:collapse; margin-top:20px; }
+    th, td { border:1px solid #37b7ff; padding:8px; text-align:center; }
+    th { background:#111824; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html" class="home-link">⬅ 返回首頁</a>
+    <div class="logo">歷史訂單查詢</div>
+  </header>
+
+  <main>
+    <h2>訂單紀錄</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>座號</th>
+          <th>品項</th>
+          <th>建立時間</th>
+        </tr>
+      </thead>
+      <tbody id="orders-table">
+        <tr><td colspan="3">載入中...</td></tr>
+      </tbody>
+    </table>
+  </main>
+
+  <script>
+    async function loadOrders(){
+      try{
+        const res = await fetch('/api/orders');
+        const data = await res.json();
+        const tbody = document.getElementById('orders-table');
+        tbody.innerHTML = '';
+
+        if(data.success && data.data.length){
+          data.data.forEach(order=>{
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${order.座號}</td>
+              <td>${order.品項}</td>
+              <td>${new Date(order.建立時間).toLocaleString()}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        } else {
+          tbody.innerHTML = '<tr><td colspan="3">目前沒有資料</td></tr>';
+        }
+      }catch(err){
+        console.error(err);
+        document.getElementById('orders-table').innerHTML =
+          '<tr><td colspan="3">載入失敗</td></tr>';
+      }
+    }
+
+    loadOrders();
+  </script>
+</body>
+</html>

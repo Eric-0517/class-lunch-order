@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>國二一便當訂購系統</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="logo">國二一便當訂購系統</div>
+</header>
+
+<main>
+  <label>座號：
+    <select id="seat-select">
+      <option value="">請選擇座號</option>
+    </select>
+  </label>
+
+  <div id="days-container"></div>
+
+  <div class="summary">
+    總金額：<span id="total-price">0</span> 元
+  </div>
+
+  <button id="submit-order" class="submit-btn">送出訂單</button>
+</main>
+
+<script>
+const seatSelect = document.getElementById('seat-select');
+for(let i=1;i<=32;i++){
+  const opt = document.createElement('option');
+  opt.value = i;
+  opt.textContent = i;
+  seatSelect.appendChild(opt);
+}
+
+const daysContainer = document.getElementById('days-container');
+const dayNames = ['禮拜一','禮拜二','禮拜三','禮拜四','禮拜五'];
+const types = ['正園A','正園B','御饌A','御饌B','悦馨A','悦馨B','今日不訂購'];
+
+dayNames.forEach(day=>{
+  const card = document.createElement('div');
+  card.className='day-card';
+  card.dataset.day=day;
+  card.innerHTML = `<h3>${day}</h3>` +
+    types.map(type=>`
+      <label>
+        <input type="radio" name="${day}" value="${type}">
+        ${type}
+      </label>
+    `).join('');
+  daysContainer.appendChild(card);
+});
+
+function updateTotal(){
+  const items=[];
+  document.querySelectorAll('.day-card').forEach(card=>{
+    const checked = card.querySelector('input[type=radio]:checked');
+    items.push({ typeName: checked ? checked.value : '今日不訂購', quantity:1 });
+  });
+  const total = items.reduce((sum,i)=>sum + (i.typeName==='今日不訂購'?0:70),0);
+  document.getElementById('total-price').textContent=total;
+}
+
+document.addEventListener('change',updateTotal);
+
+document.getElementById('submit-order').addEventListener('click', async ()=>{
+  const seat = seatSelect.value;
+  if(!seat) return alert("請選擇座號");
+
+  const items=[];
+  document.querySelectorAll('.day-card').forEach(card=>{
+    const checked = card.querySelector('input[type=radio]:checked');
+    items.push({ typeName: checked ? checked.value : '今日不訂購', quantity:1 });
+  });
+
+  const totalPrice = items.reduce((sum,i)=>sum + (i.typeName==='今日不訂購'?0:70),0);
+
+  if(!confirm(`確認便當是否訂購無誤？\n共計金額：${totalPrice} 元`)) return;
+
+  try{
+    const res = await fetch('/api/order',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({seat,items})
+    });
+    const data = await res.json();
+    alert(data.message);
+    if(data.success){
+      document.querySelectorAll('input[type=radio]').forEach(r=>r.checked=false);
+      document.getElementById('total-price').textContent=0;
+    }
+  }catch(err){
+    alert("訂單送出失敗：" + err.message);
+  }
+});
+</script>
+</body>
+</html>

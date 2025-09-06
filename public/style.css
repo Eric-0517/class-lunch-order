@@ -1,0 +1,80 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #0b0f14;
+  color: #cfe9ff;
+  margin: 0;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background: #111824;
+}
+
+header .logo {
+  font-size: 1.5em;
+  font-weight: bold;
+}
+
+button, .admin-link {
+  cursor: pointer;
+  color: #cfe9ff;
+  background: none;
+  border: none;
+  text-decoration: none;
+  font-size: 1em;
+}
+
+#sidebar {
+  position: fixed;
+  left: 0;
+  top: 50px;
+  width: 200px;
+  padding: 10px;
+  background: #111824;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease;
+  transform: translateX(-200px); /* 收合 */
+  z-index: 1000; /* 覆蓋在內容上 */
+}
+
+#sidebar.expanded {
+  transform: translateX(0);
+}
+
+#sidebar a {
+  color: #cfe9ff;
+  text-decoration: none;
+  margin: 5px 0;
+}
+
+main {
+  padding: 20px;
+}
+
+.day-card {
+  border: 1px solid #37b7ff;
+  border-radius: 10px;
+  padding: 10px;
+  margin: 10px 0;
+  background: #111824;
+  width: calc(100% - 40px); /* 填滿區域 */
+}
+
+.summary {
+  margin-top: 20px;
+  font-weight: bold;
+}
+
+.submit-btn, .admin-link {
+  background: #37b7ff;
+  color: #0b0f14;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-weight: bold;
+  border: none;
+  margin-top: 10px;
+}
