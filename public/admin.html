@@ -119,9 +119,7 @@ function renderAllOrders(orders){
   const seatMap = {};
   orders.forEach(o=>{
     if(!seatMap[o.seat]) seatMap[o.seat]=[];
-    o.items.forEach(item=>{
-      seatMap[o.seat].push(item);
-    });
+    seatMap[o.seat].push(...o.items.map(item=>({ typeName: item.typeName })));
   });
 
   let html = `<table>
@@ -137,9 +135,9 @@ function renderAllOrders(orders){
     const items = seatMap[seat];
     const counts = {};
     items.forEach(i=>{
-      counts[i.typeName] = (counts[i.typeName]||0)+i.quantity;
+      counts[i.typeName] = (counts[i.typeName]||0)+1;
     });
-    const totalPrice = items.reduce((sum,i)=>(i.typeName==="今日不訂購"?0:70*i.quantity)+sum,0);
+    const totalPrice = items.reduce((sum,i)=>(i.typeName==="今日不訂購"?0:70)+sum,0);
     let first = true;
     for(let type in counts){
       html += `<tr>
@@ -202,24 +200,24 @@ deleteAllBtn.addEventListener("click", ()=>{
   }
 });
 
-// 下拉選單每日統計
-daySelect.addEventListener("change", ()=> {
+// 🔹 每日訂單統計（已修正）
+daySelect.addEventListener("change", ()=>{
   const day = daySelect.value;
-  if(!day){ 
-    dailyStatsResult.innerHTML=""; 
-    return; 
-  }
+  if(!day){ dailyStatsResult.innerHTML=""; return; }
 
-  // 統計每日訂單
+  const dayOrders = allOrders.filter(o => 
+    o.items.some(item => item.day === day)
+  );
+
   const counts = {};
-  mealTypes.forEach(t => counts[t] = 0);
+  mealTypes.forEach(t=>counts[t]=0);
   let totalAmount = 0;
 
-  allOrders.forEach(o => {
-    o.items.forEach(i => {
-      if(i.day === day){
-        counts[i.typeName] = (counts[i.typeName] || 0) + i.quantity;
-        if(i.typeName !== "今日不訂購") totalAmount += 70 * i.quantity;
+  dayOrders.forEach(o=>{
+    o.items.forEach(item=>{
+      if(item.day===day){
+        counts[item.typeName] = (counts[item.typeName]||0)+1;
+        if(item.typeName!=="今日不訂購") totalAmount+=70;
       }
     });
   });
