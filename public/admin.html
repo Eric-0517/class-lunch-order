@@ -17,6 +17,7 @@ input, select { margin:5px 0; padding:5px; border-radius:4px; border:1px solid #
 table { border-collapse: collapse; width:100%; margin-top:15px; }
 th, td { border:1px solid #37b7ff; padding:5px; text-align:center; }
 #dailyStatsSection { margin-top:30px; }
+footer { margin-top:30px; font-size:0.8em; color:#888; }
 </style>
 </head>
 <body>
@@ -41,16 +42,6 @@ th, td { border:1px solid #37b7ff; padding:5px; text-align:center; }
 
     <div id="dailyStatsSection">
       <h2>每日訂單統計</h2>
-      <label>選擇禮拜：
-        <select id="daySelect">
-          <option value="">請選擇</option>
-          <option value="禮拜一">禮拜一</option>
-          <option value="禮拜二">禮拜二</option>
-          <option value="禮拜三">禮拜三</option>
-          <option value="禮拜四">禮拜四</option>
-          <option value="禮拜五">禮拜五</option>
-        </select>
-      </label>
       <div id="dailyStatsResult" style="margin-top:15px;"></div>
     </div>
 
@@ -58,13 +49,16 @@ th, td { border:1px solid #37b7ff; padding:5px; text-align:center; }
   </div>
 </main>
 
+<footer>
+※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
+</footer>
+
 <script>
 const loginSection = document.getElementById("loginSection");
 const adminPanel = document.getElementById("adminPanel");
 const loginBtn = document.getElementById("loginBtn");
 const loginMsg = document.getElementById("loginMsg");
 const statsResult = document.getElementById("statsResult");
-const daySelect = document.getElementById("daySelect");
 const dailyStatsResult = document.getElementById("dailyStatsResult");
 const deleteAllBtn = document.getElementById("deleteAllBtn");
 
@@ -104,22 +98,19 @@ function loadOrders(){
     .then(data=>{
       if(data.success){
         allOrders = data.data;
-        renderAllOrders(allOrders);
-      } else {
-        statsResult.innerHTML=`<div style="color:red">${data.message}</div>`;
+        renderAllOrders(allOrders);  // 原本全部訂單統計
+        renderDailyStats();          // 新增每日統計
       }
-    })
-    .catch(err=>{
-      statsResult.innerHTML=`<div style="color:red">載入失敗：${err.message}</div>`;
     });
 }
 
-// 渲染所有訂單統計
+// 渲染所有訂單統計（保持原樣）
 function renderAllOrders(orders){
   const seatMap = {};
   orders.forEach(o=>{
-    if(!seatMap[o.seat]) seatMap[o.seat]=[];
-    seatMap[o.seat].push(...o.items.map(item=>({ typeName: item.typeName })));
+    const seat = o.seat;
+    if(!seatMap[seat]) seatMap[seat]=[];
+    seatMap[seat].push(o);
   });
 
   let html = `<table>
@@ -135,9 +126,11 @@ function renderAllOrders(orders){
     const items = seatMap[seat];
     const counts = {};
     items.forEach(i=>{
-      counts[i.typeName] = (counts[i.typeName]||0)+1;
+      i.items.forEach(it=>{
+        counts[it.typeName] = (counts[it.typeName]||0)+1;
+      });
     });
-    const totalPrice = items.reduce((sum,i)=>(i.typeName==="今日不訂購"?0:70)+sum,0);
+    const totalPrice = Object.keys(counts).reduce((sum,type)=>type!=="今日不訂購"?sum+counts[type]*70:sum,0);
     let first = true;
     for(let type in counts){
       html += `<tr>
@@ -173,7 +166,6 @@ function bindDeleteButtons(){
           if(d.success){
             alert("刪除成功");
             loadOrders();
-            dailyStatsResult.innerHTML="";
           } else {
             alert(d.message);
           }
@@ -192,7 +184,6 @@ deleteAllBtn.addEventListener("click", ()=>{
         if(d.success){
           alert("全部訂單已刪除");
           loadOrders();
-          dailyStatsResult.innerHTML="";
         } else {
           alert(d.message);
         }
@@ -200,36 +191,36 @@ deleteAllBtn.addEventListener("click", ()=>{
   }
 });
 
-// 🔹 每日訂單統計（已修正）
-daySelect.addEventListener("change", ()=>{
-  const day = daySelect.value;
-  if(!day){ dailyStatsResult.innerHTML=""; return; }
+// 每日統計 - 直接顯示禮拜一到禮拜五
+function renderDailyStats(){
+  if(allOrders.length===0){
+    dailyStatsResult.innerHTML = "<p>目前沒有資料</p>";
+    return;
+  }
 
-  const dayOrders = allOrders.filter(o => 
-    o.items.some(item => item.day === day)
-  );
+  const dayNames = ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"];
+  let html = "";
 
-  const counts = {};
-  mealTypes.forEach(t=>counts[t]=0);
-  let totalAmount = 0;
+  dayNames.forEach(day=>{
+    const dayOrders = allOrders.flatMap(o=>o.items.map(it=>({day:it.day||day, typeName:it.typeName}))).filter(o=>o.day===day);
+    const counts = {};
+    mealTypes.forEach(t=>counts[t]=0);
+    let totalAmount = 0;
 
-  dayOrders.forEach(o=>{
-    o.items.forEach(item=>{
-      if(item.day===day){
-        counts[item.typeName] = (counts[item.typeName]||0)+1;
-        if(item.typeName!=="今日不訂購") totalAmount+=70;
-      }
+    dayOrders.forEach(o=>{
+      counts[o.typeName] = (counts[o.typeName]||0)+1;
+      if(o.typeName!=="今日不訂購") totalAmount +=70;
     });
+
+    html += `<h3>${day}</h3>`;
+    html += `<table>
+      <tr>${mealTypes.map(t=>`<th>${t}</th>`).join('')}<th>總金額</th></tr>
+      <tr>${mealTypes.map(t=>`<td>${counts[t]}</td>`).join('')}<td>${totalAmount}</td></tr>
+    </table>`;
   });
 
-  let html = `<h3>${day} 訂單統計</h3>`;
-  html += `<table>
-    <tr>${mealTypes.map(t=>`<th>${t}</th>`).join('')}<th>總金額</th></tr>`;
-  html += `<tr>${mealTypes.map(t=>`<td>${counts[t]}</td>`).join('')}<td>${totalAmount}</td></tr>`;
-  html += `</table>`;
-
   dailyStatsResult.innerHTML = html;
-});
+}
 </script>
 <footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
   ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
