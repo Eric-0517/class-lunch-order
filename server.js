@@ -26,7 +26,7 @@ app.post('/api/order', (req, res) => {
       return res.status(400).json({ success: false, message: '座號或訂單資料缺失' });
     }
     orders.push({ seat, items, createdAt: new Date() });
-    res.json({ success: true, message: '訂單已送出' });
+    res.json({ success: true, message: '訂單已送出，請至歷史訂單頁面確認！' });
   } catch (err) {
     res.status(500).json({ success: false, message: '伺服器錯誤', error: err.message });
   }
