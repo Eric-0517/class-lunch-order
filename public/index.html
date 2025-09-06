@@ -5,43 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>國二一便當訂購系統</title>
 <link rel="stylesheet" href="style.css">
-<style>
-  header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .header-buttons {
-    display: flex;
-    gap: 10px;
-  }
-  .btn {
-    padding: 8px 14px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-  }
-  .btn-history {
-    background-color: #2196f3;
-    color: white;
-  }
-  .btn-login {
-    background-color: #4caf50;
-    color: white;
-  }
-  .btn:hover {
-    opacity: 0.9;
-  }
-</style>
 </head>
 <body>
 <header>
   <div class="logo">國二一便當訂購系統</div>
-  <div class="header-buttons">
-    <button class="btn btn-history" onclick="location.href='history.html'">歷史訂單</button>
-    <button class="btn btn-login" onclick="location.href='admin.html'">後台登入</button>
-  </div>
 </header>
 
 <main>
@@ -60,6 +27,10 @@
   <button id="submit-order" class="submit-btn">送出訂單</button>
 </main>
 
+<footer>
+※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
+</footer>
+
 <script>
 const seatSelect = document.getElementById('seat-select');
 for(let i=1;i<=32;i++){
@@ -73,6 +44,7 @@ const daysContainer = document.getElementById('days-container');
 const dayNames = ['禮拜一','禮拜二','禮拜三','禮拜四','禮拜五'];
 const types = ['正園A','正園B','御饌A','御饌B','悦馨A','悦馨B','今日不訂購'];
 
+// 建立每日選項卡
 dayNames.forEach(day=>{
   const card = document.createElement('div');
   card.className='day-card';
@@ -110,7 +82,6 @@ document.getElementById('submit-order').addEventListener('click', async ()=>{
   });
 
   const totalPrice = items.reduce((sum,i)=>sum + (i.typeName==='今日不訂購'?0:70),0);
-
   if(!confirm(`確認便當是否訂購無誤？\n共計金額：${totalPrice} 元`)) return;
 
   try{
@@ -130,8 +101,5 @@ document.getElementById('submit-order').addEventListener('click', async ()=>{
   }
 });
 </script>
-  <footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
-  ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
-</footer>
 </body>
 </html>
