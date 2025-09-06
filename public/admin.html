@@ -210,15 +210,12 @@ daySelect.addEventListener("change", ()=> {
     return; 
   }
 
-  const dayOrders = allOrders.filter(o => {
-    return o.items.some(i => i.day === day);
-  });
-
+  // 統計每日訂單
   const counts = {};
   mealTypes.forEach(t => counts[t] = 0);
   let totalAmount = 0;
 
-  dayOrders.forEach(o => {
+  allOrders.forEach(o => {
     o.items.forEach(i => {
       if(i.day === day){
         counts[i.typeName] = (counts[i.typeName] || 0) + i.quantity;
