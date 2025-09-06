@@ -14,6 +14,8 @@
     table { width:100%; border-collapse:collapse; margin-top:20px; }
     th, td { border:1px solid #37b7ff; padding:8px; text-align:center; }
     th { background:#111824; }
+    .delete-btn { background:red; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
+    .delete-btn:hover { background:#a80000; }
   </style>
 </head>
 <body>
@@ -29,8 +31,8 @@
         <tr>
           <th>座號</th>
           <th>品項</th>
-          <th>日期</th>
-          <th>建立時間</th>
+          <th>數量</th>
+          <th>總金額</th>
         </tr>
       </thead>
       <tbody id="orders-table">
@@ -40,6 +42,8 @@
   </main>
 
   <script>
+    const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨A","悦馨B","今日不訂購"];
+
     async function loadOrders(){
       try{
         const res = await fetch('/api/orders');
@@ -48,19 +52,43 @@
         tbody.innerHTML = '';
 
         if(data.success && data.data.length){
-          data.data.forEach(order=>{
-            // 每個訂單可能有多個 items
-            order.items.forEach(item=>{
+          // 先把訂單依座號整理
+          const seatMap = {};
+          data.data.forEach(order => {
+            const seat = order.seat;
+            if(!seatMap[seat]) seatMap[seat] = [];
+            seatMap[seat].push(order);
+          });
+
+          Object.keys(seatMap).forEach(seat => {
+            const orders = seatMap[seat];
+            // 計算各品項數量
+            const counts = {};
+            mealTypes.forEach(t=>counts[t]=0);
+            let totalAmount = 0;
+            orders.forEach(o=>{
+              o.items.forEach(item=>{
+                counts[item.typeName] = (counts[item.typeName]||0)+1;
+                if(item.typeName!=="今日不訂購") totalAmount +=70;
+              });
+            });
+
+            // 將非零品項列出
+            const nonZeroItems = mealTypes.filter(t=>counts[t]>0);
+
+            nonZeroItems.forEach((type, index)=>{
               const tr = document.createElement('tr');
               tr.innerHTML = `
-                <td>${order.seat}</td>
-                <td>${item.typeName}</td>
-                <td>${item.day || '-'}</td>
-                <td>${new Date(order.createdAt).toLocaleString()}</td>
+                ${index===0?`<td rowspan="${nonZeroItems.length}">${seat}</td>`:""}
+                <td>${type}</td>
+                <td>${counts[type]}</td>
+                ${index===0?`<td rowspan="${nonZeroItems.length}">${totalAmount}</td>`:""}
               `;
               tbody.appendChild(tr);
             });
+
           });
+
         } else {
           tbody.innerHTML = '<tr><td colspan="4">目前沒有資料</td></tr>';
         }
