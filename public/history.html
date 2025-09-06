@@ -29,11 +29,12 @@
         <tr>
           <th>座號</th>
           <th>品項</th>
+          <th>日期</th>
           <th>建立時間</th>
         </tr>
       </thead>
       <tbody id="orders-table">
-        <tr><td colspan="3">載入中...</td></tr>
+        <tr><td colspan="4">載入中...</td></tr>
       </tbody>
     </table>
   </main>
@@ -48,21 +49,25 @@
 
         if(data.success && data.data.length){
           data.data.forEach(order=>{
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td>${order.座號}</td>
-              <td>${order.品項}</td>
-              <td>${new Date(order.建立時間).toLocaleString()}</td>
-            `;
-            tbody.appendChild(tr);
+            // 每個訂單可能有多個 items
+            order.items.forEach(item=>{
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td>${order.seat}</td>
+                <td>${item.typeName}</td>
+                <td>${item.day || '-'}</td>
+                <td>${new Date(order.createdAt).toLocaleString()}</td>
+              `;
+              tbody.appendChild(tr);
+            });
           });
         } else {
-          tbody.innerHTML = '<tr><td colspan="3">目前沒有資料</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="4">目前沒有資料</td></tr>';
         }
       }catch(err){
         console.error(err);
         document.getElementById('orders-table').innerHTML =
-          '<tr><td colspan="3">載入失敗</td></tr>';
+          '<tr><td colspan="4">載入失敗</td></tr>';
       }
     }
 
