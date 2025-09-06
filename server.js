@@ -16,7 +16,7 @@ let orders = [];
 
 // 模擬管理員帳密
 const ADMIN_USER = "admin";
-const ADMIN_PASS = "1234";
+const ADMIN_PASS = "12345678";
 
 // POST /api/order - 接收訂單
 app.post('/api/order', (req, res) => {
