@@ -9,12 +9,15 @@ body { font-family: Arial, sans-serif; background:#0b0f14; color:#cfe9ff; margin
 header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111824; }
 .logo { font-size:1.5em; font-weight:bold; }
 button, .admin-link { cursor:pointer; color:#cfe9ff; background:none; border:none; text-decoration:none; font-size:1em; }
+input, select { margin:5px 0; padding:5px; border-radius:4px; border:1px solid #37b7ff; background:#111824; color:#cfe9ff; }
+#loginBtn { background:#37b7ff; color:#0b0f14; border:none; padding:8px 16px; border-radius:6px; margin-top:10px; }
+#loginBtn:hover { background:#2a9edb; }
 .delete-btn { background:red; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
 .delete-btn:hover { background:#a80000; }
 table { border-collapse: collapse; width:100%; margin-top:15px; }
 th, td { border:1px solid #37b7ff; padding:5px; text-align:center; }
 #dailyStatsSection { margin-top:30px; }
-footer { margin-top:30px; font-size:0.8em; color:#888; }
+footer { margin-top:20px; font-size:0.8em; color:#888; }
 </style>
 </head>
 <body>
@@ -25,15 +28,7 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
 </header>
 
 <main>
-  <div id="loginSection">
-    <h2>管理員登入</h2>
-    <input type="text" id="adminUser" placeholder="帳號"><br>
-    <input type="password" id="adminPass" placeholder="密碼"><br>
-    <button id="loginBtn">登入</button>
-    <div id="loginMsg" style="color:red; margin-top:10px;"></div>
-  </div>
-
-  <div id="adminPanel" style="display:none;">
+  <div id="adminPanel">
     <h2>所有訂單統計</h2>
     <div id="statsResult"></div>
 
@@ -46,58 +41,27 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
   </div>
 </main>
 
-<script>
-const loginSection = document.getElementById("loginSection");
-const adminPanel = document.getElementById("adminPanel");
-const loginBtn = document.getElementById("loginBtn");
-const loginMsg = document.getElementById("loginMsg");
-const statsResult = document.getElementById("statsResult");
-const dailyStatsResult = document.getElementById("dailyStatsResult");
-const deleteAllBtn = document.getElementById("deleteAllBtn");
+<footer>
+※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
+</footer>
 
+<script>
 const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨A","悦馨B","今日不訂購"];
 let allOrders = []; // 全部訂單暫存
 
-// 登入功能
-loginBtn.addEventListener("click", () => {
-  const username = document.getElementById("adminUser").value;
-  const password = document.getElementById("adminPass").value;
-
-  fetch("/api/admin/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user: username, pass: password })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if(data.success){
-      loginSection.style.display="none";
-      adminPanel.style.display="block";
-      loginMsg.textContent="";
-      loadOrders();
-    } else {
-      loginMsg.textContent="帳號或密碼錯誤";
-    }
-  })
-  .catch(err => {
-    loginMsg.textContent="登入失敗：" + err.message;
-  });
-});
-
-// 載入所有訂單
 function loadOrders(){
   fetch("/api/orders")
     .then(res=>res.json())
     .then(data=>{
       if(data.success){
         allOrders = data.data;
-        renderAllOrders(allOrders);  // 全部訂單統計
-        renderDailyStats();          // 每日統計
+        renderAllOrders(allOrders);
+        renderDailyStats();
       }
     });
 }
 
-// 渲染所有訂單統計（保持原樣）
+// 全部訂單統計
 function renderAllOrders(orders){
   const seatMap = {};
   orders.forEach(o=>{
@@ -109,6 +73,7 @@ function renderAllOrders(orders){
   let html = `<table>
     <tr>
       <th>座號</th>
+      <th>訂購日</th>
       <th>品項</th>
       <th>數量</th>
       <th>總金額</th>
@@ -117,33 +82,47 @@ function renderAllOrders(orders){
 
   Object.keys(seatMap).forEach(seat=>{
     const items = seatMap[seat];
-    const counts = {};
-    items.forEach(i=>{
-      i.items.forEach(it=>{
-        counts[it.typeName] = (counts[it.typeName]||0)+1;
+    const rowData = [];
+
+    items.forEach(o=>{
+      o.items.forEach(it=>{
+        rowData.push({
+          day: it.day,
+          typeName: it.typeName
+        });
       });
     });
-    const totalPrice = Object.keys(counts).reduce((sum,type)=>type!=="今日不訂購"?sum+counts[type]*70:sum,0);
+
+    const counts = {};
+    rowData.forEach(r=>{
+      const key = `${r.day}_${r.typeName}`;
+      counts[key] = (counts[key]||0)+1;
+    });
+
+    const totalPrice = rowData.reduce((sum,r)=>r.typeName!=="今日不訂購"?sum+70:sum,0);
+
     let first = true;
-    for(let type in counts){
+    Object.keys(counts).forEach(key=>{
+      const [day,typeName] = key.split("_");
       html += `<tr>
         ${first?`<td rowspan="${Object.keys(counts).length}">${seat}</td>`:""}
-        <td>${type}</td>
-        <td>${counts[type]}</td>
+        <td>${day}</td>
+        <td>${typeName}</td>
+        <td>${counts[key]}</td>
         ${first?`<td rowspan="${Object.keys(counts).length}">${totalPrice}</td>`:""}
         ${first?`<td rowspan="${Object.keys(counts).length}"><button class="delete-btn" data-seat="${seat}">刪除</button></td>`:""}
       </tr>`;
       first=false;
-    }
+    });
   });
 
   html += `</table>`;
-  statsResult.innerHTML = html;
+  document.getElementById('statsResult').innerHTML = html;
 
   bindDeleteButtons();
 }
 
-// 綁定刪除按鈕
+// 刪除按鈕
 function bindDeleteButtons(){
   document.querySelectorAll(".delete-btn").forEach(btn=>{
     btn.addEventListener("click", ()=>{
@@ -159,8 +138,6 @@ function bindDeleteButtons(){
           if(d.success){
             alert("刪除成功");
             loadOrders();
-          } else {
-            alert(d.message);
           }
         });
       }
@@ -169,7 +146,7 @@ function bindDeleteButtons(){
 }
 
 // 刪除全部訂單
-deleteAllBtn.addEventListener("click", ()=>{
+document.getElementById('deleteAllBtn').addEventListener("click", ()=>{
   if(confirm("確認刪除全部訂單？")){
     fetch("/api/orders/all", { method:"DELETE" })
       .then(res=>res.json())
@@ -177,17 +154,15 @@ deleteAllBtn.addEventListener("click", ()=>{
         if(d.success){
           alert("全部訂單已刪除");
           loadOrders();
-        } else {
-          alert(d.message);
         }
       });
   }
 });
 
-// 每日統計 - 每天單獨計算
+// 每日統計
 function renderDailyStats(){
   if(allOrders.length===0){
-    dailyStatsResult.innerHTML = "<p>目前沒有資料</p>";
+    document.getElementById('dailyStatsResult').innerHTML = "<p>目前沒有資料</p>";
     return;
   }
 
@@ -195,7 +170,6 @@ function renderDailyStats(){
   let html = "";
 
   dayNames.forEach(day=>{
-    // 只取該天的訂單
     const dayOrders = allOrders.map(o=>{
       return o.items.filter(it=>it.day===day).map(it=>({typeName: it.typeName}));
     }).flat();
@@ -216,11 +190,12 @@ function renderDailyStats(){
     </table>`;
   });
 
-  dailyStatsResult.innerHTML = html;
+  document.getElementById('dailyStatsResult').innerHTML = html;
 }
+
+// 初始化
+loadOrders();
 </script>
-<footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
-  ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
-</footer>
+
 </body>
 </html>
