@@ -7,137 +7,130 @@
 <link rel="stylesheet" href="style.css">
 <style>
 header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+display: flex;
+justify-content: space-between;
+align-items: center;
 }
 .header-buttons {
-  display: flex;
-  gap: 10px;
+display: flex;
+gap: 10px;
 }
 .btn {
-  padding: 8px 14px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
+padding: 8px 14px;
+border: none;
+border-radius: 6px;
+cursor: pointer;
+font-size: 14px;
 }
 .btn-history {
-  background-color: #2196f3;
-  color: white;
+background-color: #2196f3;
+color: white;
 }
 .btn-login {
-  background-color: #4caf50;
-  color: white;
+background-color: #4caf50;
+color: white;
 }
 .btn:hover {
-  opacity: 0.9;
+opacity: 0.9;
 }
 </style>
 </head>
 <body>
 <header>
-  <div class="logo">國二一便當訂購系統</div>
-  <div class="header-buttons">
-    <button class="btn btn-history" onclick="location.href='history.html'">歷史訂單</button>
-    <button class="btn btn-login" onclick="location.href='admin.html'">後台登入</button>
-  </div>
+<div class="logo">國二一便當訂購系統</div>
+<div class="header-buttons">
+<button class="btn btn-history" onclick="location.href='history.html'">歷史訂單</button>
+<button class="btn btn-login" onclick="location.href='admin.html'">後台登入</button>
+</div>
 </header>
 
 <main>
-  <label>座號：
-    <select id="seat-select">
-      <option value="">請選擇座號</option>
-    </select>
-  </label>
+<label>座號：
+<select id="seat-select">
+<option value="">請選擇座號</option>
+</select>
+</label>
 
-  <div id="days-container"></div>
+<div id="days-container"></div>
 
-  <div class="summary">
-    總金額：<span id="total-price">0</span> 元
-  </div>
+<div class="summary">
+總金額：<span id="total-price">0</span> 元
+</div>
 
-  <button id="submit-order" class="submit-btn">送出訂單</button>
+<button id="submit-order" class="submit-btn">送出訂單</button>
 </main>
 
 <script>
 const seatSelect = document.getElementById('seat-select');
 for(let i=1;i<=32;i++){
-  const opt = document.createElement('option');
-  opt.value = i;
-  opt.textContent = i;
-  seatSelect.appendChild(opt);
+const opt = document.createElement('option');
+opt.value = i;
+opt.textContent = i;
+seatSelect.appendChild(opt);
 }
 
 const daysContainer = document.getElementById('days-container');
 const dayNames = ['禮拜一','禮拜二','禮拜三','禮拜四','禮拜五'];
 const types = ['正園A','正園B','御饌A','御饌B','悦馨','今日不訂購'];
 
-// 建立每一天的選項
 dayNames.forEach(day=>{
-  const card = document.createElement('div');
-  card.className='day-card';
-  card.dataset.day=day;
-  card.innerHTML = `<h3>${day}</h3>` +
-    types.map(type=>`
-      <label>
-        <input type="radio" name="${day}" value="${type}">
-        ${type}
-      </label>
-    `).join('');
-  daysContainer.appendChild(card);
+const card = document.createElement('div');
+card.className='day-card';
+card.dataset.day=day;
+card.innerHTML = `<h3>${day}</h3>` +
+types.map(type=>`
+     <label>
+       <input type="radio" name="${day}" value="${type}">
+       ${type}
+     </label>
+   `).join('');
+daysContainer.appendChild(card);
 });
 
 function updateTotal(){
-  const items=[];
-  document.querySelectorAll('.day-card').forEach(card=>{
-    const checked = card.querySelector('input[type=radio]:checked');
-    items.push({ typeName: checked ? checked.value : '今日不訂購', quantity:1, day: card.dataset.day });
-  });
-  const total = items.reduce((sum,i)=>sum + (i.typeName==='今日不訂購'?0:70),0);
-  document.getElementById('total-price').textContent=total;
+const items=[];
+document.querySelectorAll('.day-card').forEach(card=>{
+const checked = card.querySelector('input[type=radio]:checked');
+items.push({ typeName: checked ? checked.value : '今日不訂購', quantity:1 });
+});
+const total = items.reduce((sum,i)=>sum + (i.typeName==='今日不訂購'?0:70),0);
+document.getElementById('total-price').textContent=total;
 }
 
 document.addEventListener('change',updateTotal);
 
-// 送出訂單
 document.getElementById('submit-order').addEventListener('click', async ()=>{
-  const seat = seatSelect.value;
-  if(!seat) return alert("請選擇座號");
+const seat = seatSelect.value;
+if(!seat) return alert("請選擇座號");
 
-  const items=[];
-  document.querySelectorAll('.day-card').forEach(card=>{
-    const checked = card.querySelector('input[type=radio]:checked');
-    items.push({ 
-      typeName: checked ? checked.value : '今日不訂購', 
-      quantity:1, 
-      day: card.dataset.day   // ⭐ 新增「訂購日」
-    });
-  });
+const items=[];
+document.querySelectorAll('.day-card').forEach(card=>{
+const checked = card.querySelector('input[type=radio]:checked');
+items.push({ typeName: checked ? checked.value : '今日不訂購', quantity:1 });
+});
 
-  const totalPrice = items.reduce((sum,i)=>sum + (i.typeName==='今日不訂購'?0:70),0);
+const totalPrice = items.reduce((sum,i)=>sum + (i.typeName==='今日不訂購'?0:70),0);
 
-  if(!confirm(`確認便當是否訂購無誤？\n共計金額：${totalPrice} 元`)) return;
+if(!confirm(`確認便當是否訂購無誤？\n共計金額：${totalPrice} 元`)) return;
 
-  try{
-    const res = await fetch('/api/order',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({seat,items})
-    });
-    const data = await res.json();
-    alert(data.message);
-    if(data.success){
-      document.querySelectorAll('input[type=radio]').forEach(r=>r.checked=false);
-      document.getElementById('total-price').textContent=0;
-    }
-  }catch(err){
-    alert("訂單送出失敗：" + err.message);
-  }
+try{
+const res = await fetch('/api/order',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({seat,items})
+});
+const data = await res.json();
+alert(data.message);
+if(data.success){
+document.querySelectorAll('input[type=radio]').forEach(r=>r.checked=false);
+document.getElementById('total-price').textContent=0;
+}
+}catch(err){
+alert("訂單送出失敗：" + err.message);
+}
 });
 </script>
-
-<footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
+  <footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
   ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
 </footer>
 </body>
