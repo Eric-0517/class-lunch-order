@@ -51,7 +51,7 @@
         tbody.innerHTML = '';
 
         if(data.success && data.data.length){
-          // 按座號排序
+          // 按座號分組
           const seatMap = {};
           data.data.forEach(order => {
             const seat = order.seat;
@@ -59,10 +59,11 @@
             seatMap[seat].push(order);
           });
 
+          // 每個座號依序輸出
           Object.keys(seatMap).sort((a,b)=>a-b).forEach(seat=>{
             const orders = seatMap[seat];
             // 預設每天都是「今日不訂購」
-            const dayMap = {
+            const weekDays = {
               "禮拜一":"今日不訂購",
               "禮拜二":"今日不訂購",
               "禮拜三":"今日不訂購",
@@ -71,11 +72,13 @@
             };
             let totalAmount = 0;
 
+            // 填入該座號的選擇
             orders.forEach(o=>{
               o.items.forEach(it=>{
-                const dayKey = it.day || it.weekDay; // 支援 day 或 weekDay
-                if(dayKey && it.typeName){
-                  dayMap[dayKey] = it.typeName;
+                // day / weekDay / weekday 都相容
+                const dayKey = it.day || it.weekDay || it.weekday;
+                if(dayKey && weekDays.hasOwnProperty(dayKey)){
+                  weekDays[dayKey] = it.typeName;
                   if(it.typeName !== "今日不訂購") totalAmount += 70;
                 }
               });
@@ -84,11 +87,11 @@
             const tr = document.createElement('tr');
             tr.innerHTML = `
               <td>${seat}</td>
-              <td>${dayMap["禮拜一"]}</td>
-              <td>${dayMap["禮拜二"]}</td>
-              <td>${dayMap["禮拜三"]}</td>
-              <td>${dayMap["禮拜四"]}</td>
-              <td>${dayMap["禮拜五"]}</td>
+              <td>${weekDays["禮拜一"]}</td>
+              <td>${weekDays["禮拜二"]}</td>
+              <td>${weekDays["禮拜三"]}</td>
+              <td>${weekDays["禮拜四"]}</td>
+              <td>${weekDays["禮拜五"]}</td>
               <td>${totalAmount} 元</td>
             `;
             tbody.appendChild(tr);
