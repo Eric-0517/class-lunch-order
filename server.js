@@ -26,14 +26,16 @@ let orderMode = { open: false };
 // POST /api/order - 接收訂單
 app.post('/api/order', (req, res) => {
   try {
-    if(!orderMode.open){
-      return res.status(403).json({ success:false, message:"系統未開放送單！" });
+    if (!orderMode.open) {
+      // 後端保護層，禁止送單
+      return res.status(403).json({ success: false, message: "系統未開放送單！" });
     }
 
     const { seat, items } = req.body;
     if (!seat || !items) {
       return res.status(400).json({ success: false, message: '座號或訂單資料缺失' });
     }
+
     orders.push({ seat, items, createdAt: new Date() });
     res.json({ success: true, message: '訂單已送出，請至歷史訂單頁面確認！' });
   } catch (err) {
@@ -83,10 +85,10 @@ app.get('/api/orderMode', (req, res) => {
 app.post('/api/orderMode', (req, res) => {
   const { open } = req.body;
   if (typeof open !== "boolean") {
-    return res.status(400).json({ success: false, message:"請傳 boolean" });
+    return res.status(400).json({ success: false, message: "請傳 boolean" });
   }
   orderMode.open = open;
-  res.json({ success: true, message:`送單狀態已更新為 ${open ? '開放' : '未開放'}`});
+  res.json({ success: true, message: `送單狀態已更新為 ${open ? '開放' : '未開放'}` });
 });
 
 // -------------------- 啟動伺服器 --------------------
