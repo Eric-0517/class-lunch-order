@@ -83,7 +83,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const dailyStatsResult = document.getElementById("dailyStatsResult");
   const deleteAllBtn = document.getElementById("deleteAllBtn");
 
-  const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨","今日不訂購"];
+  const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨A","悦馨B","今日不訂購"];
+  const mealIds = ["B1","B2","B3","B4","B5","B6","B7"];
   let allOrders = []; // 全部訂單暫存
 
   // 登入功能
@@ -220,7 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ===============================
-  // 每日訂單統計（動態更新）
+  // 每日訂單統計（編號方式 A1~A5, B1~B7）
   // ===============================
   function renderDailyStats(){
     if(!allOrders || allOrders.length===0){
@@ -229,32 +230,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const dayNames = ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"];
+    const dayIds = ["A1","A2","A3","A4","A5"];
     let html = "";
 
-    // 建立 day 對應表，兼容不同資料格式
-    const dayMap = {
-      "1": "禮拜一",
-      "2": "禮拜二",
-      "3": "禮拜三",
-      "4": "禮拜四",
-      "5": "禮拜五",
-      "禮拜一": "禮拜一",
-      "禮拜二": "禮拜二",
-      "禮拜三": "禮拜三",
-      "禮拜四": "禮拜四",
-      "禮拜五": "禮拜五"
-    };
-
-    dayNames.forEach(day=>{
+    dayNames.forEach((day, dayIndex)=>{
       const counts = {};
-      mealTypes.forEach(t=>counts[t]=0);
+      mealTypes.forEach(meal=> counts[meal]=0);
       let totalAmount = 0;
 
       allOrders.forEach(order=>{
         if(order.items && Array.isArray(order.items)){
           order.items.forEach(item=>{
-            const itemDay = dayMap[item.day];
-            if(itemDay === day){
+            // 支援 day 為文字或數字
+            const itemDay = item.day.toString();
+            if(itemDay === day || itemDay === (dayIndex+1).toString()){
               counts[item.typeName] = (counts[item.typeName]||0)+1;
               if(item.typeName !== "今日不訂購") totalAmount += 70;
             }
@@ -262,10 +251,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
-      html += `<h3>${day}</h3>`;
+      html += `<h3>${day} (${dayIds[dayIndex]})</h3>`;
       html += `<table>
-        <tr>${mealTypes.map(t=>`<th>${t}</th>`).join('')}<th>總金額</th></tr>
-        <tr>${mealTypes.map(t=>`<td>${counts[t]}</td>`).join('')}<td>${totalAmount}</td></tr>
+        <tr>${mealTypes.map((meal, idx)=>`<th>${meal} (${mealIds[idx]})</th>`).join('')}<th>總金額</th></tr>
+        <tr>${mealTypes.map(meal=>`<td>${counts[meal]}</td>`).join('')}<td>${totalAmount}</td></tr>
       </table>`;
     });
 
