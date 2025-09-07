@@ -10,7 +10,7 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #0b0f14; /* 深色背景 */
+  background: #0b0f14;
   padding: 10px 20px;
 }
 .logo {
@@ -63,15 +63,15 @@ main {
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  background-color: #2196f3; /* 預設藍色 */
+  background-color: #2196f3;
   color: white;
 }
 .submit-btn.locked {
-  background-color: #f44336; /* 未開放紅色 */
+  background-color: #f44336;
   cursor: not-allowed;
 }
 .submit-btn.locked::after {
-  content: " 關閉送單"; /* 上鎖文字 */
+  content: " 關閉送單";
   margin-left: 5px;
   font-weight: bold;
 }
@@ -162,7 +162,7 @@ function updateSubmitButton() {
       const mode = JSON.parse(saved);
       if(!mode.open){
         submitBtn.classList.add('locked');
-        submitBtn.disabled = true; // 上鎖
+        submitBtn.disabled = true;
       } else {
         submitBtn.classList.remove('locked');
         submitBtn.disabled = false;
@@ -198,6 +198,9 @@ submitBtn.addEventListener('click', async ()=>{
 
   const totalPrice = items.reduce((sum,i)=>sum + (i.typeName==='今日不訂購'?0:70),0);
 
+  // ✅ 恢復確認提示
+  if(!confirm(`確認便當是否訂購無誤？\n共計金額：${totalPrice} 元`)) return;
+
   try{
     const res = await fetch('/api/order',{
       method:'POST',
@@ -205,13 +208,12 @@ submitBtn.addEventListener('click', async ()=>{
       body:JSON.stringify({seat,items})
     });
     const data = await res.json();
-    alert(data.message);
     if(data.success){
       document.querySelectorAll('input[type=radio]').forEach(r=>r.checked=false);
       document.getElementById('total-price').textContent=0;
     }
   }catch(err){
-    alert("訂單送出失敗：" + err.message);
+    console.error("訂單送出失敗：" + err.message);
   }
 });
 </script>
