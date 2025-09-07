@@ -9,7 +9,10 @@
 body { font-family: Arial, sans-serif; background:#0b0f14; color:#cfe9ff; margin:0; padding:20px; }
 header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111824; }
 .logo { font-size:1.5em; font-weight:bold; }
-.admin-link { color:#cfe9ff; text-decoration:none; font-size:1em; }
+.header-buttons { display:flex; gap:10px; }
+.admin-link, .logout-btn { color:#cfe9ff; text-decoration:none; font-size:1em; background:#2196f3; padding:4px 8px; border-radius:4px; cursor:pointer; }
+.logout-btn:hover, .admin-link:hover { opacity:0.9; }
+
 .delete-btn { background:red; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
 .delete-btn:hover { background:#a80000; }
 table { border-collapse: collapse; width:100%; margin-top:15px; }
@@ -53,7 +56,10 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
 
 <header>
   <div class="logo">後台管理 - 國二一便當訂購系統</div>
-  <a href="./index.html" class="admin-link">返回前台</a>
+  <div class="header-buttons">
+    <a href="./index.html" class="admin-link">返回前台</a>
+    <span class="logout-btn" id="logoutBtn">登出</span>
+  </div>
 </header>
 
 <main>
@@ -100,19 +106,42 @@ document.addEventListener("DOMContentLoaded", () => {
   const adminPanel = document.getElementById("adminPanel");
   const loginBtn = document.getElementById("loginBtn");
   const loginMsg = document.getElementById("loginMsg");
-  const statsResult = document.getElementById("statsResult");
-  const dailyStatsResult = document.getElementById("dailyStatsResult");
-  const deleteAllBtn = document.getElementById("deleteAllBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
 
+  let inactivityTimer = null;
+  const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10分鐘
   const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨","今日不訂購"];
   const dayNames = ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"];
-  let allOrders = []; // 全部訂單暫存
+  let allOrders = [];
 
-  // 送單模式元素
   const orderOpenCheckbox = document.getElementById("orderOpen");
   const orderCloseTimeInput = document.getElementById("orderCloseTime");
   const saveOrderModeBtn = document.getElementById("saveOrderModeBtn");
   const orderModeMsg = document.getElementById("orderModeMsg");
+  const statsResult = document.getElementById("statsResult");
+  const dailyStatsResult = document.getElementById("dailyStatsResult");
+  const deleteAllBtn = document.getElementById("deleteAllBtn");
+
+  // ===== 自動登出 =====
+  function resetInactivityTimer() {
+    if(inactivityTimer) clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(() => {
+      alert("已超過10分鐘未操作，自動登出");
+      logout();
+    }, INACTIVITY_LIMIT);
+  }
+
+  ['click','mousemove','keydown','scroll'].forEach(evt => {
+    document.addEventListener(evt, resetInactivityTimer);
+  });
+
+  function logout() {
+    localStorage.removeItem("loginTime");
+    adminPanel.style.display = "none";
+    loginSection.style.display = "block";
+  }
+
+  logoutBtn.addEventListener("click", logout);
 
   // ===== 登入功能 =====
   loginBtn.addEventListener("click", async () => {
@@ -131,15 +160,27 @@ document.addEventListener("DOMContentLoaded", () => {
         loginSection.style.display="none";
         adminPanel.style.display="block";
         loginMsg.textContent="";
+        localStorage.setItem("loginTime", Date.now());
+        resetInactivityTimer();
         loadOrders();
-        loadOrderMode(); // 載入送單模式
+        loadOrderMode();
       } else loginMsg.textContent=data.message || "帳號或密碼錯誤";
     } catch(err){
       loginMsg.textContent = "登入失敗：" + err.message;
     }
   });
 
-  // ===== 載入所有訂單 =====
+  // ===== 檢查是否已登入 =====
+  const savedLogin = localStorage.getItem("loginTime");
+  if(savedLogin && (Date.now() - savedLogin < INACTIVITY_LIMIT)){
+    loginSection.style.display="none";
+    adminPanel.style.display="block";
+    resetInactivityTimer();
+    loadOrders();
+    loadOrderMode();
+  }
+
+  // ===== 其他功能: 訂單載入/渲染/刪除 =====
   async function loadOrders(){
     try {
       const res = await fetch("/api/orders");
@@ -152,7 +193,6 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch(err){ alert("載入訂單失敗：" + err.message); }
   }
 
-  // ===== 渲染所有訂單統計 =====
   function renderAllOrders(orders){
     const seatMap = {};
     orders.forEach(o=>{
@@ -197,7 +237,6 @@ document.addEventListener("DOMContentLoaded", () => {
     bindDeleteButtons();
   }
 
-  // ===== 綁定刪除按鈕 =====
   function bindDeleteButtons(){
     document.querySelectorAll(".delete-btn").forEach(btn=>{
       btn.addEventListener("click", ()=>{
@@ -215,7 +254,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ===== 刪除全部訂單 =====
   deleteAllBtn.addEventListener("click", ()=>{
     if(confirm("確認刪除全部訂單？")){
       fetch("/api/orders/all", { method:"DELETE" })
@@ -224,15 +262,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ===== 每日統計 =====
   function renderDailyStats(){
     if(allOrders.length === 0){
       dailyStatsResult.innerHTML = "<p>目前沒有資料</p>";
       return;
     }
-
     let html = "";
-
     dayNames.forEach(day => {
       const ordersForDay = [];
       allOrders.forEach(order => {
@@ -240,49 +275,27 @@ document.addEventListener("DOMContentLoaded", () => {
           if(item.day === day) ordersForDay.push(item);
         });
       });
-
       if(ordersForDay.length === 0) return;
-
       const counts = {};
       mealTypes.forEach(type => counts[type] = 0);
-      ordersForDay.forEach(item => {
-        counts[item.typeName] = (counts[item.typeName] || 0) + 1;
-      });
-
+      ordersForDay.forEach(item => { counts[item.typeName] = (counts[item.typeName]||0)+1; });
       const totalCount = Object.keys(counts).reduce((sum,type)=> type!=="今日不訂購"?sum+counts[type]:sum,0);
       const totalAmount = totalCount * 70;
-
       html += `<h3>${day}</h3>`;
       html += `<table>
-        <tr>
-          <th>品項</th>
-          <th>數量</th>
-          <th>金額</th>
-        </tr>`;
-
+        <tr><th>品項</th><th>數量</th><th>金額</th></tr>`;
       mealTypes.forEach(type => {
         if(counts[type] > 0 && type !== "今日不訂購"){
-          html += `<tr>
-            <td>${type}</td>
-            <td>${counts[type]}</td>
-            <td>${counts[type] * 70}</td>
-          </tr>`;
+          html += `<tr><td>${type}</td><td>${counts[type]}</td><td>${counts[type]*70}</td></tr>`;
         }
       });
-
-      html += `<tr>
-        <td><b>總計</b></td>
-        <td><b>${totalCount}</b></td>
-        <td><b>${totalAmount}</b></td>
-      </tr>`;
-
+      html += `<tr><td><b>總計</b></td><td><b>${totalCount}</b></td><td><b>${totalAmount}</b></td></tr>`;
       html += `</table><br>`;
     });
-
     dailyStatsResult.innerHTML = html;
   }
 
-  // ===== 送單模式設定功能 =====
+  // ===== 送單模式設定 =====
   function loadOrderMode() {
     const saved = localStorage.getItem("orderMode");
     if(saved){
@@ -294,7 +307,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  saveOrderModeBtn.addEventListener("click", () => {
+  saveOrderModeBtn.addEventListener("click", ()=>{
     const mode = {
       open: orderOpenCheckbox.checked,
       closeTime: orderCloseTimeInput.value ? new Date(orderCloseTimeInput.value).toISOString() : null
