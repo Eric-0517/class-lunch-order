@@ -196,7 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // === 更新後的每日訂單統計函式 ===
+  // === 修改後的每日訂單統計 ===
   function renderDailyStats(){
     if(allOrders.length === 0){
       dailyStatsResult.innerHTML = "<p>目前沒有資料</p>";
@@ -216,39 +216,41 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       });
 
-      if(ordersForDay.length === 0) return; // 如果該天沒有訂單就跳過
+      if(ordersForDay.length === 0) return;
 
-      // 計算各品項總金額
+      // 計算各品項數量與金額
       const counts = {};
       mealTypes.forEach(type => counts[type] = 0);
       ordersForDay.forEach(item => {
         counts[item.typeName] = (counts[item.typeName] || 0) + 1;
       });
 
-      const totalAmount = Object.keys(counts).reduce((sum, type) => {
-        return type !== "今日不訂購" ? sum + counts[type] * 70 : sum;
-      }, 0);
+      const totalCount = Object.keys(counts).reduce((sum,type)=> type!=="今日不訂購"?sum+counts[type]:sum,0);
+      const totalAmount = totalCount * 70;
 
       // 產生表格
       html += `<h3>${day}</h3>`;
       html += `<table>
         <tr>
           <th>品項</th>
-          <th>總金額</th>
+          <th>數量</th>
+          <th>金額</th>
         </tr>`;
 
       mealTypes.forEach(type => {
         if(counts[type] > 0 && type !== "今日不訂購"){
           html += `<tr>
             <td>${type}</td>
+            <td>${counts[type]}</td>
             <td>${counts[type] * 70}</td>
           </tr>`;
         }
       });
 
       html += `<tr>
-        <td>總計</td>
-        <td>${totalAmount}</td>
+        <td><b>總計</b></td>
+        <td><b>${totalCount}</b></td>
+        <td><b>${totalAmount}</b></td>
       </tr>`;
 
       html += `</table><br>`;
