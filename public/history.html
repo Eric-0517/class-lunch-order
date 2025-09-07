@@ -43,8 +43,6 @@
   </main>
 
   <script>
-    const dayNames = ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"];
-
     async function loadOrders(){
       try{
         const res = await fetch('/api/orders');
@@ -53,35 +51,36 @@
         tbody.innerHTML = '';
 
         if(data.success && data.data.length){
-          // 依座號分類
+          // 按座號排序
           const seatMap = {};
           data.data.forEach(order => {
-            const seat = order.seat || "未知座號";
+            const seat = order.seat;
             if(!seatMap[seat]) seatMap[seat] = [];
             seatMap[seat].push(order);
           });
 
-          Object.keys(seatMap).sort((a,b)=>a-b).forEach(seat => {
+          Object.keys(seatMap).sort((a,b)=>a-b).forEach(seat=>{
             const orders = seatMap[seat];
+            // 預設每天都是「今日不訂購」
+            const dayMap = {
+              "禮拜一":"今日不訂購",
+              "禮拜二":"今日不訂購",
+              "禮拜三":"今日不訂購",
+              "禮拜四":"今日不訂購",
+              "禮拜五":"今日不訂購"
+            };
+            let totalAmount = 0;
 
-            // 初始化每週品項為「今日不訂購」
-            const dayMap = {};
-            dayNames.forEach(day => dayMap[day] = "今日不訂購");
-
-            // 填入實際訂購品項
-            orders.forEach(o => {
-              o.items.forEach(it => {
-                if(it.day && it.typeName) dayMap[it.day] = it.typeName;
+            orders.forEach(o=>{
+              o.items.forEach(it=>{
+                const dayKey = it.day || it.weekDay; // 支援 day 或 weekDay
+                if(dayKey && it.typeName){
+                  dayMap[dayKey] = it.typeName;
+                  if(it.typeName !== "今日不訂購") totalAmount += 70;
+                }
               });
             });
 
-            // 計算總金額
-            let totalAmount = 0;
-            dayNames.forEach(day => {
-              if(dayMap[day] !== "今日不訂購") totalAmount += 70;
-            });
-
-            // 生成表格列
             const tr = document.createElement('tr');
             tr.innerHTML = `
               <td>${seat}</td>
@@ -94,7 +93,6 @@
             `;
             tbody.appendChild(tr);
           });
-
         } else {
           tbody.innerHTML = '<tr><td colspan="7">目前沒有資料</td></tr>';
         }
