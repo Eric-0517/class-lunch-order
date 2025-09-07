@@ -1,113 +1,115 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>歷史訂單查詢</title>
-<link rel="stylesheet" href="style.css">
-<style>
-  body { font-family: Arial, sans-serif; background:#0b0f14; color:#cfe9ff; margin:0; }
-  header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111824; position:relative; z-index:1000; }
-  .logo { font-size:1.5em; font-weight:bold; }
-  button, .home-link { cursor:pointer; color:#cfe9ff; background:none; border:none; text-decoration:none; font-size:1em; }
-  main { padding:20px; }
-  table { width:100%; border-collapse:collapse; margin-top:20px; }
-  th, td { border:1px solid #37b7ff; padding:8px; text-align:center; }
-  th { background:#111824; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>歷史訂單查詢</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: Arial, sans-serif; background:#0b0f14; color:#cfe9ff; margin:0; }
+    header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111824; position:relative; z-index:1000; }
+    .logo { font-size:1.5em; font-weight:bold; }
+    button, .home-link { cursor:pointer; color:#cfe9ff; background:none; border:none; text-decoration:none; font-size:1em; }
+    main { padding:20px; }
+    table { width:100%; border-collapse:collapse; margin-top:20px; }
+    th, td { border:1px solid #37b7ff; padding:8px; text-align:center; }
+    th { background:#111824; }
+    .delete-btn { background:red; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
+    .delete-btn:hover { background:#a80000; }
+  </style>
 </head>
 <body>
-<header>
-  <a href="index.html" class="home-link">⬅ 返回首頁</a>
-  <div class="logo">歷史訂單查詢</div>
-</header>
+  <header>
+    <a href="index.html" class="home-link">⬅ 返回首頁</a>
+    <div class="logo">歷史訂單查詢</div>
+  </header>
 
-<main>
-  <h2>訂單紀錄</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>座號</th>
-        <th>禮拜一</th>
-        <th>禮拜二</th>
-        <th>禮拜三</th>
-        <th>禮拜四</th>
-        <th>禮拜五</th>
-        <th>總金額</th>
-      </tr>
-    </thead>
-    <tbody id="orders-table">
-      <tr><td colspan="7">載入中...</td></tr>
-    </tbody>
-  </table>
-</main>
+  <main>
+    <h2>訂單紀錄</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>座號</th>
+          <th>禮拜一</th>
+          <th>禮拜二</th>
+          <th>禮拜三</th>
+          <th>禮拜四</th>
+          <th>禮拜五</th>
+          <th>總金額</th>
+        </tr>
+      </thead>
+      <tbody id="orders-table">
+        <tr><td colspan="7">載入中...</td></tr>
+      </tbody>
+    </table>
+  </main>
 
-<script>
-const dayNames = ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"];
+  <script>
+    const dayNames = ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"];
 
-async function loadOrders(){
-  try{
-    const res = await fetch('/api/orders');
-    const data = await res.json();
-    const tbody = document.getElementById('orders-table');
-    tbody.innerHTML = '';
+    async function loadOrders(){
+      try{
+        const res = await fetch('/api/orders');
+        const data = await res.json();
+        const tbody = document.getElementById('orders-table');
+        tbody.innerHTML = '';
 
-    if(data.success && data.data.length){
-      // 依座號整理
-      const seatMap = {};
-      data.data.forEach(order => {
-        const seat = order.seat;
-        if(!seatMap[seat]) seatMap[seat] = [];
-        seatMap[seat].push(order);
-      });
-
-      Object.keys(seatMap).sort((a,b)=>a-b).forEach(seat => {
-        const orders = seatMap[seat];
-
-        // 日期 → 品項
-        const dayMap = {};
-        dayNames.forEach(d => dayMap[d] = "今日不訂購"); // 預設為今日不訂購
-        orders.forEach(o => {
-          o.items.forEach(it => {
-            const day = it.day || "禮拜一";
-            dayMap[day] = it.typeName; // 每天只顯示一個品項
+        if(data.success && data.data.length){
+          const seatMap = {};
+          data.data.forEach(order => {
+            const seat = order.seat;
+            if(!seatMap[seat]) seatMap[seat] = [];
+            seatMap[seat].push(order);
           });
-        });
 
-        // 計算總金額
-        const totalAmount = Object.values(dayMap).reduce((sum, type)=>{
-          return type!=="今日不訂購" ? sum + 70 : sum;
-        },0);
+          Object.keys(seatMap).sort((a,b)=>a-b).forEach(seat => {
+            const orders = seatMap[seat];
 
-        // 生成表格列
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${seat}</td>
-          <td>${dayMap["禮拜一"]}</td>
-          <td>${dayMap["禮拜二"]}</td>
-          <td>${dayMap["禮拜三"]}</td>
-          <td>${dayMap["禮拜四"]}</td>
-          <td>${dayMap["禮拜五"]}</td>
-          <td>${totalAmount} 元</td>
-        `;
-        tbody.appendChild(tr);
-      });
+            // 建立每一天的品項列表，預設為「今日不訂購」
+            const dayMap = {};
+            dayNames.forEach(day => dayMap[day] = "今日不訂購");
 
-    } else {
-      tbody.innerHTML = '<tr><td colspan="7">目前沒有資料</td></tr>';
+            // 填入每一天的品項，如果有多筆訂單則最後一筆為準
+            orders.forEach(o => {
+              o.items.forEach(it => {
+                if(it.day && it.typeName) dayMap[it.day] = it.typeName;
+              });
+            });
+
+            // 計算總金額
+            const totalAmount = Object.values(dayMap).reduce((sum,type)=>{
+              return type !== "今日不訂購" ? sum + 70 : sum;
+            },0);
+
+            // 生成表格列
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${seat}</td>
+              <td>${dayMap["禮拜一"]}</td>
+              <td>${dayMap["禮拜二"]}</td>
+              <td>${dayMap["禮拜三"]}</td>
+              <td>${dayMap["禮拜四"]}</td>
+              <td>${dayMap["禮拜五"]}</td>
+              <td>${totalAmount} 元</td>
+            `;
+            tbody.appendChild(tr);
+          });
+
+        } else {
+          tbody.innerHTML = '<tr><td colspan="7">目前沒有資料</td></tr>';
+        }
+      }catch(err){
+        console.error(err);
+        document.getElementById('orders-table').innerHTML =
+          '<tr><td colspan="7">載入失敗</td></tr>';
+      }
     }
-  }catch(err){
-    console.error(err);
-    document.getElementById('orders-table').innerHTML =
-      '<tr><td colspan="7">載入失敗</td></tr>';
-  }
-}
 
-loadOrders();
-</script>
+    loadOrders();
+  </script>
 
-<footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
-  ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
-</footer>
+  <footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
+    ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
+  </footer>
 </body>
 </html>
