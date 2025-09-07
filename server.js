@@ -19,7 +19,7 @@ const ADMIN_USER = "admin";
 const ADMIN_PASS = "12345678";
 
 // 送單模式（true = 開放, false = 未開放）
-let orderMode = { open: false };
+let orderMode = { open: true }; // 預設可送單
 
 // -------------------- 訂單相關 --------------------
 
