@@ -6,58 +6,42 @@
 <title>國二一便當訂購系統</title>
 <link rel="stylesheet" href="style.css">
 <style>
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.header-buttons {
-  display: flex;
-  gap: 10px;
-}
-.btn {
-  padding: 8px 14px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-}
-.btn-history {
-  background-color: #2196f3;
-  color: white;
-}
-.btn-login {
-  background-color: #4caf50;
-  color: white;
-}
-.btn:hover {
-  opacity: 0.9;
-}
+body { font-family: Arial, sans-serif; background:#0b0f14; color:#cfe9ff; margin:0; padding:20px; }
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom:20px; }
+.header-buttons { display: flex; gap: 10px; }
+.btn { padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.btn-history { background-color: #2196f3; color: white; }
+.btn-login { background-color: #4caf50; color: white; }
+.btn:disabled { background-color: red; cursor: not-allowed; }
+.day-card { margin: 10px 0; padding:10px; border:1px solid #37b7ff; border-radius:6px; }
+.summary { margin-top: 15px; font-weight:bold; }
 </style>
 </head>
 <body>
+
 <header>
-  <div class="logo">國二一便當訂購系統</div>
-  <div class="header-buttons">
-    <button class="btn btn-history" onclick="location.href='history.html'">歷史訂單</button>
-    <button class="btn btn-login" onclick="location.href='admin.html'">後台登入</button>
-  </div>
+<div class="logo">國二一便當訂購系統</div>
+<div class="header-buttons">
+<button class="btn btn-history" onclick="location.href='history.html'">歷史訂單</button>
+<button class="btn btn-login" onclick="location.href='admin.html'">後台登入</button>
+</div>
 </header>
 
 <main>
-  <label>座號：
-    <select id="seat-select">
-      <option value="">請選擇座號</option>
-    </select>
-  </label>
+<label>座號：
+<select id="seat-select">
+<option value="">請選擇座號</option>
+</select>
+</label>
 
-  <div id="days-container"></div>
+<div id="days-container"></div>
 
-  <div class="summary">
-    總金額：<span id="total-price">0</span> 元
-  </div>
+<div class="summary">
+總金額：<span id="total-price">0</span> 元
+</div>
 
-  <button id="submit-order" class="submit-btn">送出訂單</button>
+<button id="submit-order" class="btn" style="margin-top:10px;">送出訂單</button>
+<div id="closed-msg" style="color:red; margin-top:10px; display:none;">設定時間已到，訂購系統已關閉！</div>
 </main>
 
 <script>
@@ -78,7 +62,7 @@ dayNames.forEach(day=>{
   card.className='day-card';
   card.dataset.day=day;
   card.innerHTML = `<h3>${day}</h3>` +
-    types.map(type=>`
+  types.map(type=>`
        <label>
          <input type="radio" name="${day}" value="${type}">
          ${type}
@@ -96,21 +80,48 @@ function updateTotal(){
   const total = items.reduce((sum,i)=>sum + (i.typeName==='今日不訂購'?0:70),0);
   document.getElementById('total-price').textContent=total;
 }
-
 document.addEventListener('change',updateTotal);
 
-document.getElementById('submit-order').addEventListener('click', async ()=>{
+const submitBtn = document.getElementById('submit-order');
+const closedMsg = document.getElementById('closed-msg');
+
+// 檢查系統是否開放
+async function checkSystemStatus(){
+  try{
+    const res = await fetch('/api/system-status');
+    const data = await res.json();
+    if(data.success){
+      const now = new Date();
+      let isOpen = data.isOpen;
+      if(data.closeTime) {
+        const closeTime = new Date(data.closeTime);
+        if(now >= closeTime) isOpen = false;
+      }
+      if(!isOpen){
+        submitBtn.disabled = true;
+        closedMsg.style.display='block';
+      } else {
+        submitBtn.disabled = false;
+        closedMsg.style.display='none';
+      }
+    }
+  }catch(err){
+    console.error(err);
+  }
+}
+
+// 每分鐘自動檢查一次
+setInterval(checkSystemStatus, 60000);
+checkSystemStatus();
+
+submitBtn.addEventListener('click', async ()=>{
   const seat = seatSelect.value;
   if(!seat) return alert("請選擇座號");
 
   const items=[];
   document.querySelectorAll('.day-card').forEach(card=>{
     const checked = card.querySelector('input[type=radio]:checked');
-    items.push({ 
-      day: card.dataset.day,   // ✅ 加入「禮拜幾」
-      typeName: checked ? checked.value : '今日不訂購',
-      quantity: 1
-    });
+    items.push({ typeName: checked ? checked.value : '今日不訂購', quantity:1 });
   });
 
   const totalPrice = items.reduce((sum,i)=>sum + (i.typeName==='今日不訂購'?0:70),0);
@@ -136,7 +147,7 @@ document.getElementById('submit-order').addEventListener('click', async ()=>{
 </script>
 
 <footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
-  ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
+※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
 </footer>
 </body>
 </html>
