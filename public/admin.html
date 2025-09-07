@@ -184,7 +184,7 @@ deleteAllBtn.addEventListener("click", ()=>{
   }
 });
 
-// 每日統計 - 每天單獨計算
+// ✅ 每日統計 - 根據訂單的 day 欄位分組
 function renderDailyStats(){
   if(allOrders.length===0){
     dailyStatsResult.innerHTML = "<p>目前沒有資料</p>";
@@ -195,18 +195,18 @@ function renderDailyStats(){
   let html = "";
 
   dayNames.forEach(day=>{
-    // 只取該天的訂單
-    const dayOrders = allOrders.map(o=>{
-      return o.items.filter(it=>it.day===day).map(it=>({typeName: it.typeName}));
-    }).flat();
+    // 篩選出該天的所有 item
+    const dayOrders = allOrders.flatMap(o=>{
+      return o.items.filter(it=>it.day===day);
+    });
 
     const counts = {};
     mealTypes.forEach(t=>counts[t]=0);
     let totalAmount = 0;
 
-    dayOrders.forEach(o=>{
-      counts[o.typeName] = (counts[o.typeName]||0)+1;
-      if(o.typeName!=="今日不訂購") totalAmount +=70;
+    dayOrders.forEach(it=>{
+      counts[it.typeName] = (counts[it.typeName]||0)+1;
+      if(it.typeName!=="今日不訂購") totalAmount +=70;
     });
 
     html += `<h3>${day}</h3>`;
@@ -219,6 +219,7 @@ function renderDailyStats(){
   dailyStatsResult.innerHTML = html;
 }
 </script>
+
 <footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
   ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
 </footer>
