@@ -231,6 +231,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const dayNames = ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"];
     let html = "";
 
+    // 建立 day 對應表，兼容不同資料格式
+    const dayMap = {
+      "1": "禮拜一",
+      "2": "禮拜二",
+      "3": "禮拜三",
+      "4": "禮拜四",
+      "5": "禮拜五",
+      "禮拜一": "禮拜一",
+      "禮拜二": "禮拜二",
+      "禮拜三": "禮拜三",
+      "禮拜四": "禮拜四",
+      "禮拜五": "禮拜五"
+    };
+
     dayNames.forEach(day=>{
       const counts = {};
       mealTypes.forEach(t=>counts[t]=0);
@@ -239,9 +253,10 @@ document.addEventListener("DOMContentLoaded", () => {
       allOrders.forEach(order=>{
         if(order.items && Array.isArray(order.items)){
           order.items.forEach(item=>{
-            if(item.day === day){
+            const itemDay = dayMap[item.day];
+            if(itemDay === day){
               counts[item.typeName] = (counts[item.typeName]||0)+1;
-              if(item.typeName!=="今日不訂購") totalAmount +=70;
+              if(item.typeName !== "今日不訂購") totalAmount += 70;
             }
           });
         }
