@@ -27,7 +27,7 @@
     <table>
       <thead>
         <tr>
-          <th>日期</th>
+          <th>座號</th>
           <th>禮拜一</th>
           <th>禮拜二</th>
           <th>禮拜三</th>
@@ -53,21 +53,22 @@
         tbody.innerHTML = '';
 
         if(data.success && data.data.length){
-          // 將訂單依日期分類
-          const dateMap = {}; // date => [orders]
+          // 依座號分類
+          const seatMap = {};
           data.data.forEach(order => {
-            const date = order.date || "未知日期"; // 確保有日期欄位
-            if(!dateMap[date]) dateMap[date] = [];
-            dateMap[date].push(order);
+            const seat = order.seat || "未知座號";
+            if(!seatMap[seat]) seatMap[seat] = [];
+            seatMap[seat].push(order);
           });
 
-          Object.keys(dateMap).sort().forEach(date => {
-            const orders = dateMap[date];
+          Object.keys(seatMap).sort((a,b)=>a-b).forEach(seat => {
+            const orders = seatMap[seat];
 
-            // 建立每天的品項對照
+            // 初始化每週品項為「今日不訂購」
             const dayMap = {};
             dayNames.forEach(day => dayMap[day] = "今日不訂購");
 
+            // 填入實際訂購品項
             orders.forEach(o => {
               o.items.forEach(it => {
                 if(it.day && it.typeName) dayMap[it.day] = it.typeName;
@@ -83,7 +84,7 @@
             // 生成表格列
             const tr = document.createElement('tr');
             tr.innerHTML = `
-              <td>${date}</td>
+              <td>${seat}</td>
               <td>${dayMap["禮拜一"]}</td>
               <td>${dayMap["禮拜二"]}</td>
               <td>${dayMap["禮拜三"]}</td>
