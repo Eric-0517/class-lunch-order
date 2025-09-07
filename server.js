@@ -19,18 +19,14 @@ const ADMIN_USER = "admin";
 const ADMIN_PASS = "12345678";
 
 // 送單模式（true = 開放, false = 未開放）
-let orderMode = { open: true }; // 預設可送單
+// 前端可用來控制按鈕顏色，但後端不再阻擋送單
+let orderMode = { open: false };
 
 // -------------------- 訂單相關 --------------------
 
 // POST /api/order - 接收訂單
 app.post('/api/order', (req, res) => {
   try {
-    if (!orderMode.open) {
-      // 後端保護層，禁止送單
-      return res.status(403).json({ success: false, message: "系統未開放送單！" });
-    }
-
     const { seat, items } = req.body;
     if (!seat || !items) {
       return res.status(400).json({ success: false, message: '座號或訂單資料缺失' });
@@ -76,7 +72,7 @@ app.post('/api/admin/login', (req, res) => {
 
 // -------------------- 送單開放狀態 --------------------
 
-// GET /api/orderMode - 取得送單狀態
+// GET /api/orderMode - 取得送單狀態（前端用於按鈕顏色）
 app.get('/api/orderMode', (req, res) => {
   res.json({ success: true, data: orderMode });
 });
