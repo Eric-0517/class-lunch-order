@@ -83,29 +83,27 @@ document.addEventListener("DOMContentLoaded", () => {
   const dailyStatsResult = document.getElementById("dailyStatsResult");
   const deleteAllBtn = document.getElementById("deleteAllBtn");
 
+  const dayNames = ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"];
+  const dayIds = ["A1","A2","A3","A4","A5"];
   const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨A","悦馨B","今日不訂購"];
-  const mealIds = ["B1","B2","B3","B4","B5","B6","B7"];
-  let allOrders = []; // 全部訂單暫存
+  const typeIds = ["B1","B2","B3","B4","B5","B6","B7"];
+  let allOrders = [];
 
   // 登入功能
   loginBtn.addEventListener("click", async () => {
     const username = document.getElementById("adminUser").value.trim();
     const password = document.getElementById("adminPass").value.trim();
-
     if(!username || !password){
       loginMsg.textContent = "請輸入帳號與密碼";
       return;
     }
-
     try {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user: username, pass: password })
       });
-
       const data = await res.json();
-
       if(data.success){
         loginSection.style.display = "none";
         adminPanel.style.display = "block";
@@ -127,7 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if(data.success){
         allOrders = data.data;
         renderAllOrders(allOrders);
-        renderDailyStats();  // 每日統計
+        renderDailyStats();
       }
     } catch(err){
       alert("載入訂單失敗：" + err.message);
@@ -138,20 +136,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderAllOrders(orders){
     const seatMap = {};
     orders.forEach(o=>{
-      const seat = o.seat;
-      if(!seatMap[seat]) seatMap[seat]=[];
-      seatMap[seat].push(o);
+      if(!seatMap[o.seat]) seatMap[o.seat]=[];
+      seatMap[o.seat].push(o);
     });
-
     let html = `<table>
-      <tr>
-        <th>座號</th>
-        <th>品項</th>
-        <th>數量</th>
-        <th>總金額</th>
-        <th>操作</th>
-      </tr>`;
-
+      <tr><th>座號</th><th>品項</th><th>數量</th><th>總金額</th><th>操作</th></tr>`;
     Object.keys(seatMap).forEach(seat=>{
       const items = seatMap[seat];
       const counts = {};
@@ -161,7 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       });
       const totalPrice = Object.keys(counts).reduce((sum,type)=>type!=="今日不訂購"?sum+counts[type]*70:sum,0);
-      let first = true;
+      let first=true;
       for(let type in counts){
         html += `<tr>
           ${first?`<td rowspan="${Object.keys(counts).length}">${seat}</td>`:""}
@@ -173,13 +162,11 @@ document.addEventListener("DOMContentLoaded", () => {
         first=false;
       }
     });
-
     html += `</table>`;
     statsResult.innerHTML = html;
     bindDeleteButtons();
   }
 
-  // 綁定刪除按鈕
   function bindDeleteButtons(){
     document.querySelectorAll(".delete-btn").forEach(btn=>{
       btn.addEventListener("click", ()=>{
@@ -192,69 +179,55 @@ document.addEventListener("DOMContentLoaded", () => {
           })
           .then(res=>res.json())
           .then(d=>{
-            if(d.success){
-              alert("刪除成功");
-              loadOrders();
-            } else {
-              alert(d.message);
-            }
+            if(d.success) loadOrders();
+            else alert(d.message);
           });
         }
       });
     });
   }
 
-  // 刪除全部訂單
   deleteAllBtn.addEventListener("click", ()=>{
     if(confirm("確認刪除全部訂單？")){
       fetch("/api/orders/all", { method:"DELETE" })
         .then(res=>res.json())
         .then(d=>{
-          if(d.success){
-            alert("全部訂單已刪除");
-            loadOrders();
-          } else {
-            alert(d.message);
-          }
+          if(d.success) loadOrders();
+          else alert(d.message);
         });
     }
   });
 
-  // ===============================
-  // 每日訂單統計（編號方式 A1~A5, B1~B7）
-  // ===============================
+  // 每日訂單統計（編號版）
   function renderDailyStats(){
     if(!allOrders || allOrders.length===0){
       dailyStatsResult.innerHTML = "<p>目前沒有資料</p>";
       return;
     }
 
-    const dayNames = ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"];
-    const dayIds = ["A1","A2","A3","A4","A5"];
     let html = "";
 
-    dayNames.forEach((day, dayIndex)=>{
+    dayNames.forEach((day, dayIdx)=>{
+      // 初始化統計
       const counts = {};
-      mealTypes.forEach(meal=> counts[meal]=0);
+      mealTypes.forEach(mt=>counts[mt]=0);
       let totalAmount = 0;
 
       allOrders.forEach(order=>{
         if(order.items && Array.isArray(order.items)){
           order.items.forEach(item=>{
-            // 支援 day 為文字或數字
-            const itemDay = item.day.toString();
-            if(itemDay === day || itemDay === (dayIndex+1).toString()){
+            if(item.day === day){
               counts[item.typeName] = (counts[item.typeName]||0)+1;
-              if(item.typeName !== "今日不訂購") totalAmount += 70;
+              if(item.typeName!=="今日不訂購") totalAmount+=70;
             }
           });
         }
       });
 
-      html += `<h3>${day} (${dayIds[dayIndex]})</h3>`;
+      html += `<h3>${day} (${dayIds[dayIdx]})</h3>`;
       html += `<table>
-        <tr>${mealTypes.map((meal, idx)=>`<th>${meal} (${mealIds[idx]})</th>`).join('')}<th>總金額</th></tr>
-        <tr>${mealTypes.map(meal=>`<td>${counts[meal]}</td>`).join('')}<td>${totalAmount}</td></tr>
+        <tr>${mealTypes.map((t, idx)=>`<th>${t} (${typeIds[idx]})</th>`).join('')}<th>總金額</th></tr>
+        <tr>${mealTypes.map(t=>`<td>${counts[t]}</td>`).join('')}<td>${totalAmount}</td></tr>
       </table>`;
     });
 
