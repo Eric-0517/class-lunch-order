@@ -70,6 +70,11 @@ main {
   background-color: #f44336; /* 未開放紅色 */
   cursor: not-allowed;
 }
+.submit-btn.locked::after {
+  content: " 關閉送單"; /* 上鎖文字 */
+  margin-left: 5px;
+  font-weight: bold;
+}
 .submit-btn:hover:not(.locked) {
   opacity: 0.9;
 }
@@ -162,7 +167,14 @@ function updateSubmitButton() {
         submitBtn.classList.remove('locked');
         submitBtn.disabled = false;
       }
-    }catch(e){}
+    }catch(e){
+      submitBtn.classList.remove('locked');
+      submitBtn.disabled = false;
+    }
+  } else {
+    // 預設開放送單
+    submitBtn.classList.remove('locked');
+    submitBtn.disabled = false;
   }
 }
 updateSubmitButton();
@@ -185,8 +197,6 @@ submitBtn.addEventListener('click', async ()=>{
   });
 
   const totalPrice = items.reduce((sum,i)=>sum + (i.typeName==='今日不訂購'?0:70),0);
-
-  if(!confirm(`確認便當是否訂購無誤？\n共計金額：${totalPrice} 元`)) return;
 
   try{
     const res = await fetch('/api/order',{
