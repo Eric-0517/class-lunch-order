@@ -65,31 +65,41 @@
           Object.keys(seatMap).sort((a,b)=>a-b).forEach(seat => {
             const orders = seatMap[seat];
 
-            // 建立每一天的品項列表，預設為「今日不訂購」
+            // 每一天的品項列表
             const dayMap = {};
-            dayNames.forEach(day => dayMap[day] = "今日不訂購");
+            dayNames.forEach(day => dayMap[day] = []);
 
-            // 填入每一天的品項，如果有多筆訂單則最後一筆為準
+            // 填入每一天所有品項
             orders.forEach(o => {
               o.items.forEach(it => {
-                if(it.day && it.typeName) dayMap[it.day] = it.typeName;
+                if(it.day && it.typeName && it.typeName!=="今日不訂購"){
+                  dayMap[it.day].push(it.typeName);
+                }
               });
             });
 
+            // 如果某天沒有品項就顯示「今日不訂購」
+            dayNames.forEach(day => {
+              if(dayMap[day].length === 0) dayMap[day].push("今日不訂購");
+            });
+
             // 計算總金額
-            const totalAmount = Object.values(dayMap).reduce((sum,type)=>{
-              return type !== "今日不訂購" ? sum + 70 : sum;
-            },0);
+            let totalAmount = 0;
+            dayNames.forEach(day => {
+              dayMap[day].forEach(type => {
+                if(type !== "今日不訂購") totalAmount += 70;
+              });
+            });
 
             // 生成表格列
             const tr = document.createElement('tr');
             tr.innerHTML = `
               <td>${seat}</td>
-              <td>${dayMap["禮拜一"]}</td>
-              <td>${dayMap["禮拜二"]}</td>
-              <td>${dayMap["禮拜三"]}</td>
-              <td>${dayMap["禮拜四"]}</td>
-              <td>${dayMap["禮拜五"]}</td>
+              <td>${dayMap["禮拜一"].join(' / ')}</td>
+              <td>${dayMap["禮拜二"].join(' / ')}</td>
+              <td>${dayMap["禮拜三"].join(' / ')}</td>
+              <td>${dayMap["禮拜四"].join(' / ')}</td>
+              <td>${dayMap["禮拜五"].join(' / ')}</td>
               <td>${totalAmount} 元</td>
             `;
             tbody.appendChild(tr);
