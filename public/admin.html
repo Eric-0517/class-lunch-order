@@ -40,6 +40,9 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
   cursor: pointer;
 }
 .login-btn:hover { opacity: 0.9; }
+
+/* 系統狀態切換 */
+#systemToggle { margin-top:15px; }
 </style>
 </head>
 <body>
@@ -69,6 +72,15 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
       <div id="dailyStatsResult" style="margin-top:15px;"></div>
     </div>
 
+    <div id="systemToggle">
+      <label>訂購系統狀態：
+        <select id="systemStatus">
+          <option value="open">開放訂購</option>
+          <option value="closed">關閉訂購</option>
+        </select>
+      </label>
+    </div>
+
     <button id="deleteAllBtn" class="delete-btn" style="margin-top:15px;">刪除全部訂單</button>
   </div>
 </main>
@@ -82,6 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const statsResult = document.getElementById("statsResult");
   const dailyStatsResult = document.getElementById("dailyStatsResult");
   const deleteAllBtn = document.getElementById("deleteAllBtn");
+  const systemStatus = document.getElementById("systemStatus");
 
   const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨","今日不訂購"];
   const dayNames = ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"];
@@ -124,7 +137,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch(err){ alert("載入訂單失敗：" + err.message); }
   }
 
-  // 渲染所有訂單統計（原樣）
+  // 渲染所有訂單統計
   function renderAllOrders(orders){
     const seatMap = {};
     orders.forEach(o=>{
@@ -169,7 +182,6 @@ document.addEventListener("DOMContentLoaded", () => {
     bindDeleteButtons();
   }
 
-  // 綁定刪除按鈕
   function bindDeleteButtons(){
     document.querySelectorAll(".delete-btn").forEach(btn=>{
       btn.addEventListener("click", ()=>{
@@ -187,7 +199,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 刪除全部訂單
   deleteAllBtn.addEventListener("click", ()=>{
     if(confirm("確認刪除全部訂單？")){
       fetch("/api/orders/all", { method:"DELETE" })
@@ -196,7 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // === 修改後的每日訂單統計 ===
+  // === 每日訂單統計 ===
   function renderDailyStats(){
     if(allOrders.length === 0){
       dailyStatsResult.innerHTML = "<p>目前沒有資料</p>";
@@ -204,56 +215,35 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     let html = "";
-
     dayNames.forEach(day => {
-      // 篩選該天的訂單
       const ordersForDay = [];
       allOrders.forEach(order => {
         order.items.forEach(item => {
-          if(item.day === day){
-            ordersForDay.push(item);
-          }
+          if(item.day === day) ordersForDay.push(item);
         });
       });
-
       if(ordersForDay.length === 0) return;
 
-      // 計算各品項數量與金額
       const counts = {};
       mealTypes.forEach(type => counts[type] = 0);
       ordersForDay.forEach(item => {
         counts[item.typeName] = (counts[item.typeName] || 0) + 1;
       });
 
-      const totalCount = Object.keys(counts).reduce((sum,type)=> type!=="今日不訂購"?sum+counts[type]:sum,0);
-      const totalAmount = totalCount * 70;
+      const totalAmount = Object.keys(counts).reduce((sum, type) => {
+        return type !== "今日不訂購" ? sum + counts[type] * 70 : sum;
+      }, 0);
 
-      // 產生表格
-      html += `<h3>${day}</h3>`;
-      html += `<table>
-        <tr>
-          <th>品項</th>
-          <th>數量</th>
-          <th>金額</th>
-        </tr>`;
+      html += `<h3>${day}</h3><table>
+        <tr><th>品項</th><th>總金額</th></tr>`;
 
-      mealTypes.forEach(type => {
-        if(counts[type] > 0 && type !== "今日不訂購"){
-          html += `<tr>
-            <td>${type}</td>
-            <td>${counts[type]}</td>
-            <td>${counts[type] * 70}</td>
-          </tr>`;
+      mealTypes.forEach(type=>{
+        if(counts[type]>0 && type!=="今日不訂購"){
+          html += `<tr><td>${type}</td><td>${counts[type]*70}</td></tr>`;
         }
       });
 
-      html += `<tr>
-        <td><b>總計</b></td>
-        <td><b>${totalCount}</b></td>
-        <td><b>${totalAmount}</b></td>
-      </tr>`;
-
-      html += `</table><br>`;
+      html += `<tr><td>總計</td><td>${totalAmount}</td></tr></table><br>`;
     });
 
     dailyStatsResult.innerHTML = html;
