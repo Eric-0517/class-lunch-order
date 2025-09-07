@@ -6,16 +6,11 @@
 <title>國二一便當訂購系統</title>
 <link rel="stylesheet" href="style.css">
 <style>
-body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 0;
-}
 header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #0b0f14; /* 改回原本深色 */
+  background: #0b0f14; /* 深色背景 */
   padding: 10px 20px;
 }
 .logo {
@@ -72,7 +67,7 @@ main {
   color: white;
 }
 .submit-btn.locked {
-  background-color: #f44336; /* 紅色上鎖 */
+  background-color: #f44336; /* 未開放紅色 */
   cursor: not-allowed;
 }
 .submit-btn:hover:not(.locked) {
@@ -153,29 +148,28 @@ function updateTotal(){
 }
 document.addEventListener('change',updateTotal);
 
-// 送單按鈕
+// 控制送單按鈕狀態
 const submitBtn = document.getElementById('submit-order');
-
 function updateSubmitButton() {
   const saved = localStorage.getItem("orderMode");
   if(saved){
-    try {
+    try{
       const mode = JSON.parse(saved);
       if(!mode.open){
         submitBtn.classList.add('locked');
+        submitBtn.disabled = true; // 上鎖
       } else {
         submitBtn.classList.remove('locked');
+        submitBtn.disabled = false;
       }
-    } catch(e){}
+    }catch(e){}
   }
 }
-
-// 頁面載入時判斷送單狀態
 updateSubmitButton();
 
-// 點擊送單事件仍執行送單，但紅色上鎖表示未開放（可自由決定是否阻止）
+// 點擊送單
 submitBtn.addEventListener('click', async ()=>{
-  if(submitBtn.classList.contains('locked')) return; // 未開放時不做任何事
+  if(submitBtn.disabled) return; // 上鎖時不執行
 
   const seat = seatSelect.value;
   if(!seat) return alert("請選擇座號");
