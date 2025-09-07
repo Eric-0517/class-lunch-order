@@ -74,6 +74,10 @@ main {
 .submit-btn:hover {
   opacity: 0.9;
 }
+.submit-btn.locked {
+  background-color: red !important;
+  cursor: not-allowed;
+}
 footer {
   text-align: center;
   font-size: 0.8em;
@@ -108,6 +112,42 @@ footer {
 </main>
 
 <script>
+// ====== 送單模式設定 ======
+let orderMode = { open: true, closeTime: null };
+
+// 從 localStorage 載入設定
+function loadOrderMode() {
+  const saved = localStorage.getItem("orderMode");
+  if (saved) {
+    try {
+      orderMode = JSON.parse(saved);
+    } catch(e) {}
+  }
+}
+
+// 檢查送單是否允許
+function checkOrderMode() {
+  const btn = document.getElementById("submit-order");
+  let locked = false;
+  if (!orderMode.open) locked = true;
+  if (orderMode.closeTime) {
+    const now = new Date();
+    const close = new Date(orderMode.closeTime);
+    if (now >= close) locked = true;
+  }
+  if (locked) {
+    btn.classList.add("locked");
+  } else {
+    btn.classList.remove("locked");
+  }
+  return !locked;
+}
+
+loadOrderMode();
+checkOrderMode();
+
+// ====== 原本功能 ======
+
 // 動態產生座號選單
 const seatSelect = document.getElementById('seat-select');
 for (let i = 1; i <= 32; i++) {
@@ -151,6 +191,10 @@ document.addEventListener('change', updateTotal);
 
 // 送出訂單
 document.getElementById('submit-order').addEventListener('click', async () => {
+  if (!checkOrderMode()) {
+    return alert("系統未開放送單或時間到自動關閉系統！\n詳情聯繫：s11316021@fsvs.khc.edu.tw");
+  }
+
   const seat = seatSelect.value;
   if (!seat) return alert("請選擇座號");
 
