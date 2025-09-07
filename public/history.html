@@ -30,19 +30,20 @@
       <thead>
         <tr>
           <th>座號</th>
+          <th>訂購日</th>
           <th>品項</th>
           <th>數量</th>
           <th>總金額</th>
         </tr>
       </thead>
       <tbody id="orders-table">
-        <tr><td colspan="4">載入中...</td></tr>
+        <tr><td colspan="5">載入中...</td></tr>
       </tbody>
     </table>
   </main>
 
   <script>
-    const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨A","悦馨B","今日不訂購"];
+    const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨","今日不訂購"];
 
     async function loadOrders(){
       try{
@@ -52,16 +53,19 @@
         tbody.innerHTML = '';
 
         if(data.success && data.data.length){
-          // 先把訂單依座號整理
-          const seatMap = {};
+          // 依座號與訂購日分組
+          const seatDayMap = {};
           data.data.forEach(order => {
-            const seat = order.seat;
-            if(!seatMap[seat]) seatMap[seat] = [];
-            seatMap[seat].push(order);
+            const key = `${order.seat}_${order.day}`;
+            if(!seatDayMap[key]) seatDayMap[key] = [];
+            seatDayMap[key].push(order);
           });
 
-          Object.keys(seatMap).forEach(seat => {
-            const orders = seatMap[seat];
+          Object.keys(seatDayMap).forEach(key => {
+            const orders = seatDayMap[key];
+            const seat = orders[0].seat;
+            const day = orders[0].day;
+
             // 計算各品項數量
             const counts = {};
             mealTypes.forEach(t=>counts[t]=0);
@@ -80,26 +84,29 @@
               const tr = document.createElement('tr');
               tr.innerHTML = `
                 ${index===0?`<td rowspan="${nonZeroItems.length}">${seat}</td>`:""}
+                ${index===0?`<td rowspan="${nonZeroItems.length}">${day}</td>`:""}
                 <td>${type}</td>
                 <td>${counts[type]}</td>
                 ${index===0?`<td rowspan="${nonZeroItems.length}">${totalAmount}</td>`:""}
               `;
               tbody.appendChild(tr);
             });
-
           });
 
         } else {
-          tbody.innerHTML = '<tr><td colspan="4">目前沒有資料</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="5">目前沒有資料</td></tr>';
         }
       }catch(err){
         console.error(err);
         document.getElementById('orders-table').innerHTML =
-          '<tr><td colspan="4">載入失敗</td></tr>';
+          '<tr><td colspan="5">載入失敗</td></tr>';
       }
     }
 
     loadOrders();
   </script>
+  <footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
+  ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
+</footer>
 </body>
 </html>
