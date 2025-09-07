@@ -62,20 +62,19 @@
           // 每個座號依序輸出
           Object.keys(seatMap).sort((a,b)=>a-b).forEach(seat=>{
             const orders = seatMap[seat];
-            // 預設每天都是「今日不訂購」
+            // 初始每天留空
             const weekDays = {
-              "禮拜一":"今日不訂購",
-              "禮拜二":"今日不訂購",
-              "禮拜三":"今日不訂購",
-              "禮拜四":"今日不訂購",
-              "禮拜五":"今日不訂購"
+              "禮拜一": "",
+              "禮拜二": "",
+              "禮拜三": "",
+              "禮拜四": "",
+              "禮拜五": ""
             };
             let totalAmount = 0;
 
             // 填入該座號的選擇
             orders.forEach(o=>{
               o.items.forEach(it=>{
-                // day / weekDay / weekday 都相容
                 const dayKey = it.day || it.weekDay || it.weekday;
                 if(dayKey && weekDays.hasOwnProperty(dayKey)){
                   weekDays[dayKey] = it.typeName;
