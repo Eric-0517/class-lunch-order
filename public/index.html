@@ -10,11 +10,11 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background:#111824;
-  padding:10px 20px;
-  color:#cfe9ff;
 }
-.header-buttons { display:flex; gap:10px; }
+.header-buttons {
+  display: flex;
+  gap: 10px;
+}
 .btn {
   padding: 8px 14px;
   border: none;
@@ -22,21 +22,20 @@ header {
   cursor: pointer;
   font-size: 14px;
 }
-.btn-history { background-color: #2196f3; color: white; }
-.btn-login { background-color: #4caf50; color: white; }
-.btn:hover { opacity:0.9; }
-
-.day-card { margin-top:10px; padding:10px; border:1px solid #37b7ff; border-radius:6px; }
-
-.summary { margin-top:20px; font-size:1.2em; }
-
-.submit-btn { margin-top:20px; padding:10px 20px; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
-.submit-btn.closed { background-color:red; cursor:not-allowed; }
-.submit-btn.open { background-color:#4caf50; color:white; }
+.btn-history {
+  background-color: #2196f3;
+  color: white;
+}
+.btn-login {
+  background-color: #4caf50;
+  color: white;
+}
+.btn:hover {
+  opacity: 0.9;
+}
 </style>
 </head>
 <body>
-
 <header>
   <div class="logo">國二一便當訂購系統</div>
   <div class="header-buttons">
@@ -46,19 +45,19 @@ header {
 </header>
 
 <main>
-<label>座號：
-<select id="seat-select">
-  <option value="">請選擇座號</option>
-</select>
-</label>
+  <label>座號：
+    <select id="seat-select">
+      <option value="">請選擇座號</option>
+    </select>
+  </label>
 
-<div id="days-container"></div>
+  <div id="days-container"></div>
 
-<div class="summary">
-  總金額：<span id="total-price">0</span> 元
-</div>
+  <div class="summary">
+    總金額：<span id="total-price">0</span> 元
+  </div>
 
-<button id="submit-order" class="submit-btn">送出訂單</button>
+  <button id="submit-order" class="submit-btn">送出訂單</button>
 </main>
 
 <script>
@@ -92,7 +91,7 @@ function updateTotal(){
   const items=[];
   document.querySelectorAll('.day-card').forEach(card=>{
     const checked = card.querySelector('input[type=radio]:checked');
-    if(checked) items.push({ typeName: checked.value, quantity:1 });
+    items.push({ typeName: checked ? checked.value : '今日不訂購', quantity:1 });
   });
   const total = items.reduce((sum,i)=>sum + (i.typeName==='今日不訂購'?0:70),0);
   document.getElementById('total-price').textContent=total;
@@ -100,35 +99,18 @@ function updateTotal(){
 
 document.addEventListener('change',updateTotal);
 
-const submitBtn = document.getElementById('submit-order');
-
-// 判斷系統是否開放
-const systemStatus = localStorage.getItem("systemStatus") || "open";
-if(systemStatus === "closed"){
-  submitBtn.disabled = true;
-  submitBtn.classList.remove("open");
-  submitBtn.classList.add("closed");
-  submitBtn.textContent = "訂購系統已關閉！";
-} else {
-  submitBtn.disabled = false;
-  submitBtn.classList.remove("closed");
-  submitBtn.classList.add("open");
-  submitBtn.textContent = "送出訂單";
-}
-
-submitBtn.addEventListener('click', async ()=>{
-  if(systemStatus === "closed"){
-    alert("訂購系統已關閉，無法送出訂單！");
-    return;
-  }
-
+document.getElementById('submit-order').addEventListener('click', async ()=>{
   const seat = seatSelect.value;
   if(!seat) return alert("請選擇座號");
 
   const items=[];
   document.querySelectorAll('.day-card').forEach(card=>{
     const checked = card.querySelector('input[type=radio]:checked');
-    if(checked) items.push({ typeName: checked.value, quantity:1, day: card.dataset.day });
+    items.push({ 
+      day: card.dataset.day,   // ✅ 加入「禮拜幾」
+      typeName: checked ? checked.value : '今日不訂購',
+      quantity: 1
+    });
   });
 
   const totalPrice = items.reduce((sum,i)=>sum + (i.typeName==='今日不訂購'?0:70),0);
@@ -154,8 +136,7 @@ submitBtn.addEventListener('click', async ()=>{
 </script>
 
 <footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
-※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
+  ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
 </footer>
-
 </body>
 </html>
