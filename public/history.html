@@ -30,26 +30,19 @@
       <thead>
         <tr>
           <th>座號</th>
-          <th>日期</th>
           <th>品項</th>
           <th>數量</th>
           <th>總金額</th>
         </tr>
       </thead>
       <tbody id="orders-table">
-        <tr><td colspan="5">載入中...</td></tr>
+        <tr><td colspan="4">載入中...</td></tr>
       </tbody>
     </table>
   </main>
 
   <script>
-    const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨","今日不訂購"];
-    const dayNames = ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"];
-    const dayMap = {
-      "1":"禮拜一","2":"禮拜二","3":"禮拜三","4":"禮拜四","5":"禮拜五",
-      "禮拜一":"禮拜一","禮拜二":"禮拜二","禮拜三":"禮拜三",
-      "禮拜四":"禮拜四","禮拜五":"禮拜五"
-    };
+    const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨",,"今日不訂購"];
 
     async function loadOrders(){
       try{
@@ -59,61 +52,57 @@
         tbody.innerHTML = '';
 
         if(data.success && data.data.length){
-          const seatDayMap = {};
+          // 先把訂單依座號整理
+          const seatMap = {};
           data.data.forEach(order => {
             const seat = order.seat;
-            if(!seatDayMap[seat]) seatDayMap[seat] = {};
-            order.items.forEach(item=>{
-              const day = dayMap[item.day];
-              if(!seatDayMap[seat][day]) seatDayMap[seat][day] = [];
-              seatDayMap[seat][day].push(item);
-            });
+            if(!seatMap[seat]) seatMap[seat] = [];
+            seatMap[seat].push(order);
           });
 
-          Object.keys(seatDayMap).forEach(seat=>{
-            const days = seatDayMap[seat];
-            dayNames.forEach(day=>{
-              if(days[day]){
-                const counts = {};
-                mealTypes.forEach(t=>counts[t]=0);
-                let totalAmount = 0;
-                days[day].forEach(item=>{
-                  counts[item.typeName] = (counts[item.typeName]||0)+1;
-                  if(item.typeName!=="今日不訂購") totalAmount+=70;
-                });
-
-                const nonZeroItems = mealTypes.filter(t=>counts[t]>0);
-
-                nonZeroItems.forEach((type, tIdx)=>{
-                  const tr = document.createElement('tr');
-                  tr.innerHTML = `
-                    ${tIdx===0?`<td rowspan="${nonZeroItems.length}">${seat}</td>`:""}
-                    ${tIdx===0?`<td rowspan="${nonZeroItems.length}">${day}</td>`:""}
-                    <td>${type}</td>
-                    <td>${counts[type]}</td>
-                    ${tIdx===0?`<td rowspan="${nonZeroItems.length}">${totalAmount}</td>`:""}
-                  `;
-                  tbody.appendChild(tr);
-                });
-              }
+          Object.keys(seatMap).forEach(seat => {
+            const orders = seatMap[seat];
+            // 計算各品項數量
+            const counts = {};
+            mealTypes.forEach(t=>counts[t]=0);
+            let totalAmount = 0;
+            orders.forEach(o=>{
+              o.items.forEach(item=>{
+                counts[item.typeName] = (counts[item.typeName]||0)+1;
+                if(item.typeName!=="今日不訂購") totalAmount +=70;
+              });
             });
+
+            // 將非零品項列出
+            const nonZeroItems = mealTypes.filter(t=>counts[t]>0);
+
+            nonZeroItems.forEach((type, index)=>{
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                ${index===0?`<td rowspan="${nonZeroItems.length}">${seat}</td>`:""}
+                <td>${type}</td>
+                <td>${counts[type]}</td>
+                ${index===0?`<td rowspan="${nonZeroItems.length}">${totalAmount}</td>`:""}
+              `;
+              tbody.appendChild(tr);
+            });
+
           });
 
         } else {
-          tbody.innerHTML = '<tr><td colspan="5">目前沒有資料</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="4">目前沒有資料</td></tr>';
         }
       }catch(err){
         console.error(err);
         document.getElementById('orders-table').innerHTML =
-          '<tr><td colspan="5">載入失敗</td></tr>';
+          '<tr><td colspan="4">載入失敗</td></tr>';
       }
     }
 
     loadOrders();
   </script>
-
   <footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
-    ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
-  </footer>
+  ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
+</footer>
 </body>
 </html>
