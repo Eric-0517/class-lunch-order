@@ -1,106 +1,126 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>歷史訂單查詢</title>
-<link rel="stylesheet" href="style.css">
-<style>
-body { font-family: Arial, sans-serif; background:#0b0f14; color:#cfe9ff; margin:0; }
-header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111824; position:relative; z-index:1000; }
-.logo { font-size:1.5em; font-weight:bold; }
-.home-link { cursor:pointer; color:#cfe9ff; background:none; border:none; text-decoration:none; font-size:1em; }
-main { padding:20px; }
-table { width:100%; border-collapse:collapse; margin-top:10px; }
-th, td { border:1px solid #37b7ff; padding:8px; text-align:center; }
-th { background:#111824; }
-h3 { margin-top:30px; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>歷史訂單查詢</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: Arial, sans-serif; background:#0b0f14; color:#cfe9ff; margin:0; }
+    header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111824; position:relative; z-index:1000; }
+    .logo { font-size:1.5em; font-weight:bold; }
+    button, .home-link { cursor:pointer; color:#cfe9ff; background:none; border:none; text-decoration:none; font-size:1em; }
+    main { padding:20px; }
+    table { width:100%; border-collapse:collapse; margin-top:20px; }
+    th, td { border:1px solid #37b7ff; padding:8px; text-align:center; }
+    th { background:#111824; }
+    .delete-btn { background:red; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
+    .delete-btn:hover { background:#a80000; }
+  </style>
 </head>
 <body>
-<header>
-  <a href="index.html" class="home-link">⬅ 返回首頁</a>
-  <div class="logo">歷史訂單查詢</div>
-</header>
+  <header>
+    <a href="index.html" class="home-link">⬅ 返回首頁</a>
+    <div class="logo">歷史訂單查詢</div>
+  </header>
 
-<main>
-  <h2>每日訂單統計</h2>
-  <div id="ordersContainer">
-    <div id="ordersResult">載入中...</div>
-  </div>
-</main>
+  <main>
+    <h2>訂單紀錄</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>座號</th>
+          <th>日期</th>
+          <th>品項</th>
+          <th>數量</th>
+          <th>總金額</th>
+        </tr>
+      </thead>
+      <tbody id="orders-table">
+        <tr><td colspan="5">載入中...</td></tr>
+      </tbody>
+    </table>
+  </main>
 
-<script>
-const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨","今日不訂購"];
-const dayNames = ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"];
+  <script>
+    const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨A","悦馨B","今日不訂購"];
+    const dayNames = ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"];
 
-async function loadOrders(){
-  try{
-    const res = await fetch('/api/orders');
-    const data = await res.json();
-    const container = document.getElementById('ordersResult');
-    container.innerHTML = '';
+    async function loadOrders(){
+      try{
+        const res = await fetch('/api/orders');
+        const data = await res.json();
+        const tbody = document.getElementById('orders-table');
+        tbody.innerHTML = '';
 
-    if(data.success && data.data.length){
-      dayNames.forEach(day=>{
-        const dayOrders = data.data.flatMap(order => 
-          order.items.filter(item => item.day === day)
-        );
+        if(data.success && data.data.length){
+          // 依座號整理
+          const seatMap = {};
+          data.data.forEach(order => {
+            const seat = order.seat;
+            if(!seatMap[seat]) seatMap[seat] = [];
+            seatMap[seat].push(order);
+          });
 
-        if(dayOrders.length === 0) return;
+          Object.keys(seatMap).sort((a,b)=>a-b).forEach(seat => {
+            const orders = seatMap[seat];
 
-        // 計算各品項總金額
-        const counts = {};
-        mealTypes.forEach(t => counts[t] = 0);
-        let totalAmount = 0;
+            // 日期 → 品項 → 數量
+            const dayMap = {};
+            dayNames.forEach(d => dayMap[d] = {});
+            orders.forEach(o => {
+              o.items.forEach(it => {
+                const day = it.day || "禮拜一";
+                if(!dayMap[day][it.typeName]) dayMap[day][it.typeName] = 0;
+                dayMap[day][it.typeName]++;
+              });
+            });
 
-        dayOrders.forEach(item => {
-          counts[item.typeName] = (counts[item.typeName] || 0) + 1;
-          if(item.typeName !== "今日不訂購") totalAmount += 70;
-        });
+            // 計算座號總行數
+            let seatRowspan = 0;
+            dayNames.forEach(d => {
+              seatRowspan += Object.keys(dayMap[d]).filter(t=>dayMap[d][t]>0).length;
+            });
+            let firstSeatRow = true;
 
-        // 日期小標題
-        const dayTitle = document.createElement('h3');
-        dayTitle.textContent = day;
-        container.appendChild(dayTitle);
+            dayNames.forEach(day => {
+              const items = Object.keys(dayMap[day]).filter(t=>dayMap[day][t]>0);
+              if(items.length === 0) return;
+              const totalAmount = items.reduce((sum,type)=>{
+                return type!=="今日不訂購"? sum + dayMap[day][type]*70 : sum;
+              },0);
 
-        // 表格
-        const table = document.createElement('table');
-        const thead = document.createElement('thead');
-        thead.innerHTML = `<tr><th>品項</th><th>總金額</th></tr>`;
-        table.appendChild(thead);
+              items.forEach((type,index)=>{
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                  ${firstSeatRow && index===0? `<td rowspan="${seatRowspan}">${seat}</td>` : ""}
+                  ${index===0? `<td rowspan="${items.length}">${day}</td>` : ""}
+                  <td>${type}</td>
+                  <td>${dayMap[day][type]}</td>
+                  ${index===0? `<td rowspan="${items.length}">${totalAmount}</td>` : ""}
+                `;
+                tbody.appendChild(tr);
+              });
+              firstSeatRow=false;
+            });
 
-        const tbody = document.createElement('tbody');
-        mealTypes.forEach(type => {
-          if(counts[type] > 0){
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${type}</td><td>${type !== "今日不訂購" ? counts[type]*70 : 0}</td>`;
-            tbody.appendChild(tr);
-          }
-        });
+          });
 
-        // 每日總金額
-        const trTotal = document.createElement('tr');
-        trTotal.innerHTML = `<td><b>總金額</b></td><td><b>${totalAmount}</b></td>`;
-        tbody.appendChild(trTotal);
-
-        table.appendChild(tbody);
-        container.appendChild(table);
-      });
-    } else {
-      container.innerHTML = '<p>目前沒有資料</p>';
+        } else {
+          tbody.innerHTML = '<tr><td colspan="5">目前沒有資料</td></tr>';
+        }
+      }catch(err){
+        console.error(err);
+        document.getElementById('orders-table').innerHTML =
+          '<tr><td colspan="5">載入失敗</td></tr>';
+      }
     }
-  } catch(err){
-    console.error(err);
-    document.getElementById('ordersResult').innerHTML = '<p>載入失敗</p>';
-  }
-}
 
-loadOrders();
-</script>
+    loadOrders();
+  </script>
 
-<footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
-  ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
-</footer>
+  <footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
+    ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
+  </footer>
 </body>
 </html>
