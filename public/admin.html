@@ -124,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch(err){ alert("載入訂單失敗：" + err.message); }
   }
 
-  // 渲染所有訂單統計
+  // 渲染所有訂單統計（原樣）
   function renderAllOrders(orders){
     const seatMap = {};
     orders.forEach(o=>{
@@ -196,60 +196,64 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 每日訂單統計 (座號→日期→品項→數量→總金額)
+  // === 更新後的每日訂單統計函式 ===
   function renderDailyStats(){
-    if(allOrders.length===0){ dailyStatsResult.innerHTML="<p>目前沒有資料</p>"; return; }
+    if(allOrders.length === 0){
+      dailyStatsResult.innerHTML = "<p>目前沒有資料</p>";
+      return;
+    }
 
-    const seatMap = {};
-    allOrders.forEach(order=>{
-      const seat = order.seat;
-      if(!seatMap[seat]) seatMap[seat]=[];
-      seatMap[seat].push(order);
-    });
+    let html = "";
 
-    let html = `<table>
-      <tr>
-        <th>座號</th>
-        <th>日期</th>
-        <th>品項</th>
-        <th>數量</th>
-        <th>總金額</th>
+    dayNames.forEach(day => {
+      // 篩選該天的訂單
+      const ordersForDay = [];
+      allOrders.forEach(order => {
+        order.items.forEach(item => {
+          if(item.day === day){
+            ordersForDay.push(item);
+          }
+        });
+      });
+
+      if(ordersForDay.length === 0) return; // 如果該天沒有訂單就跳過
+
+      // 計算各品項總金額
+      const counts = {};
+      mealTypes.forEach(type => counts[type] = 0);
+      ordersForDay.forEach(item => {
+        counts[item.typeName] = (counts[item.typeName] || 0) + 1;
+      });
+
+      const totalAmount = Object.keys(counts).reduce((sum, type) => {
+        return type !== "今日不訂購" ? sum + counts[type] * 70 : sum;
+      }, 0);
+
+      // 產生表格
+      html += `<h3>${day}</h3>`;
+      html += `<table>
+        <tr>
+          <th>品項</th>
+          <th>總金額</th>
+        </tr>`;
+
+      mealTypes.forEach(type => {
+        if(counts[type] > 0 && type !== "今日不訂購"){
+          html += `<tr>
+            <td>${type}</td>
+            <td>${counts[type] * 70}</td>
+          </tr>`;
+        }
+      });
+
+      html += `<tr>
+        <td>總計</td>
+        <td>${totalAmount}</td>
       </tr>`;
 
-    Object.keys(seatMap).sort((a,b)=>a-b).forEach(seat=>{
-      const orders = seatMap[seat];
-      // 日期統計
-      const dayMap = {};
-      dayNames.forEach(day=>dayMap[day]={});
-      orders.forEach(o=>{
-        o.items.forEach(it=>{
-          const day = it.day || "禮拜一";
-          if(!dayMap[day][it.typeName]) dayMap[day][it.typeName]=0;
-          dayMap[day][it.typeName]+=1;
-        });
-      });
-
-      let seatRowspan = 0;
-      dayNames.forEach(day=>seatRowspan += Object.keys(dayMap[day]).filter(t=>dayMap[day][t]>0).length);
-      let firstSeatRow = true;
-
-      dayNames.forEach(day=>{
-        const items = Object.keys(dayMap[day]).filter(t=>dayMap[day][t]>0);
-        const totalAmount = items.reduce((sum,type)=>type!=="今日不訂購"?sum+dayMap[day][type]*70:sum,0);
-        items.forEach((type,index)=>{
-          html += `<tr>
-            ${firstSeatRow && index===0?`<td rowspan="${seatRowspan}">${seat}</td>`:""}
-            ${index===0?`<td rowspan="${items.length}">${day}</td>`:""}
-            <td>${type}</td>
-            <td>${dayMap[day][type]}</td>
-            ${index===0?`<td rowspan="${items.length}">${totalAmount}</td>`:""}
-          </tr>`;
-        });
-        firstSeatRow=false;
-      });
+      html += `</table><br>`;
     });
 
-    html += `</table>`;
     dailyStatsResult.innerHTML = html;
   }
 
