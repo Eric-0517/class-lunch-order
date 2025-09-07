@@ -14,8 +14,6 @@
     table { width:100%; border-collapse:collapse; margin-top:20px; }
     th, td { border:1px solid #37b7ff; padding:8px; text-align:center; }
     th { background:#111824; }
-    .delete-btn { background:red; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
-    .delete-btn:hover { background:#a80000; }
   </style>
 </head>
 <body>
@@ -29,7 +27,7 @@
     <table>
       <thead>
         <tr>
-          <th>座號</th>
+          <th>日期</th>
           <th>禮拜一</th>
           <th>禮拜二</th>
           <th>禮拜三</th>
@@ -55,51 +53,42 @@
         tbody.innerHTML = '';
 
         if(data.success && data.data.length){
-          const seatMap = {};
+          // 將訂單依日期分類
+          const dateMap = {}; // date => [orders]
           data.data.forEach(order => {
-            const seat = order.seat;
-            if(!seatMap[seat]) seatMap[seat] = [];
-            seatMap[seat].push(order);
+            const date = order.date || "未知日期"; // 確保有日期欄位
+            if(!dateMap[date]) dateMap[date] = [];
+            dateMap[date].push(order);
           });
 
-          Object.keys(seatMap).sort((a,b)=>a-b).forEach(seat => {
-            const orders = seatMap[seat];
+          Object.keys(dateMap).sort().forEach(date => {
+            const orders = dateMap[date];
 
-            // 每一天的品項列表
+            // 建立每天的品項對照
             const dayMap = {};
-            dayNames.forEach(day => dayMap[day] = []);
+            dayNames.forEach(day => dayMap[day] = "今日不訂購");
 
-            // 填入每一天所有品項
             orders.forEach(o => {
               o.items.forEach(it => {
-                if(it.day && it.typeName && it.typeName!=="今日不訂購"){
-                  dayMap[it.day].push(it.typeName);
-                }
+                if(it.day && it.typeName) dayMap[it.day] = it.typeName;
               });
-            });
-
-            // 如果某天沒有品項就顯示「今日不訂購」
-            dayNames.forEach(day => {
-              if(dayMap[day].length === 0) dayMap[day].push("今日不訂購");
             });
 
             // 計算總金額
             let totalAmount = 0;
             dayNames.forEach(day => {
-              dayMap[day].forEach(type => {
-                if(type !== "今日不訂購") totalAmount += 70;
-              });
+              if(dayMap[day] !== "今日不訂購") totalAmount += 70;
             });
 
             // 生成表格列
             const tr = document.createElement('tr');
             tr.innerHTML = `
-              <td>${seat}</td>
-              <td>${dayMap["禮拜一"].join(' / ')}</td>
-              <td>${dayMap["禮拜二"].join(' / ')}</td>
-              <td>${dayMap["禮拜三"].join(' / ')}</td>
-              <td>${dayMap["禮拜四"].join(' / ')}</td>
-              <td>${dayMap["禮拜五"].join(' / ')}</td>
+              <td>${date}</td>
+              <td>${dayMap["禮拜一"]}</td>
+              <td>${dayMap["禮拜二"]}</td>
+              <td>${dayMap["禮拜三"]}</td>
+              <td>${dayMap["禮拜四"]}</td>
+              <td>${dayMap["禮拜五"]}</td>
               <td>${totalAmount} 元</td>
             `;
             tbody.appendChild(tr);
