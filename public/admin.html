@@ -132,7 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function resetInactivityTimer() {
     if(inactivityTimer) clearTimeout(inactivityTimer);
     inactivityTimer = setTimeout(() => {
-      alert("已超過10分鐘未操作，自動登出");
+      alert("已超過10分鐘未操作，為保護資訊安全，系統已自動將您登出");
       logout();
     }, INACTIVITY_LIMIT);
   }
