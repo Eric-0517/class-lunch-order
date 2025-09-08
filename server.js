@@ -14,7 +14,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // 訂單暫存（測試用）
 let orders = [];
 
-// 模擬管理員帳密
+// 管理員帳密
 const ADMIN_USER = "admin";
 const ADMIN_PASS = "12345678";
 
