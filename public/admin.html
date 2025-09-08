@@ -10,32 +10,8 @@ body { font-family: Arial, sans-serif; background:#0b0f14; color:#cfe9ff; margin
 header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111824; }
 .logo { font-size:1.5em; font-weight:bold; }
 .header-buttons { display:flex; gap:10px; }
-
-/* 返回前台按鈕 */
-.admin-link {
-  color:#cfe9ff;
-  text-decoration:none;
-  font-size:1em;
-  font-weight:bold;
-  background:#2196f3;
-  padding:8px 14px;
-  border-radius:6px;
-  cursor:pointer;
-}
-.admin-link:hover { opacity:0.9; }
-
-/* 登出按鈕（登入後才顯示） */
-.logout-btn {
-  display:none; /* 預設隱藏 */
-  color:#cfe9ff;
-  font-size:1em;
-  font-weight:bold;
-  background:#f44336;
-  padding:8px 14px;
-  border-radius:6px;
-  cursor:pointer;
-}
-.logout-btn:hover { opacity:0.9; }
+.admin-link, .logout-btn { color:#cfe9ff; text-decoration:none; font-size:1em; background:#2196f3; padding:4px 8px; border-radius:4px; cursor:pointer; }
+.logout-btn:hover, .admin-link:hover { opacity:0.9; }
 
 .delete-btn { background:red; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
 .delete-btn:hover { background:#a80000; }
@@ -44,7 +20,6 @@ th, td { border:1px solid #37b7ff; padding:5px; text-align:center; }
 #dailyStatsSection { margin-top:30px; }
 footer { margin-top:30px; font-size:0.8em; color:#888; }
 
-/* 輸入框樣式 */
 .input-field {
   width: 250px;
   padding: 8px 12px;
@@ -55,7 +30,6 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
   color: #cfe9ff;
 }
 
-/* 登入按鈕 */
 .login-btn {
   padding: 8px 20px;
   margin-top: 10px;
@@ -71,7 +45,7 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
 /* 送單模式區塊 */
 #orderModeSection { margin-top:30px; border:1px solid #37b7ff; padding:15px; border-radius:6px; }
 #orderModeSection label { margin-right:10px; }
-#orderModeSection input[type="datetime-local"] { background:#111824; color:#cfe9ff; border:1px solid #37b7ff; border-radius:6px; padding:4px 8px; }
+#orderModeSection input[type="date"] { background:#111824; color:#cfe9ff; border:1px solid #37b7ff; border-radius:6px; padding:4px 8px; }
 #orderModeSection button { margin-top:10px; padding:6px 12px; border:none; border-radius:6px; background:#2196f3; color:white; cursor:pointer; }
 #orderModeSection button:hover { opacity:0.9; }
 </style>
@@ -110,13 +84,13 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
 
     <!-- ===== 送單模式設定 ===== -->
     <div id="orderModeSection">
-      <h2>功能設定</h2>
+      <h2>送單模式設定</h2>
       <label>
         <input type="checkbox" id="orderOpen"> 開放送單
       </label><br>
       <label>
-        自動關閉時間：
-        <input type="datetime-local" id="orderCloseTime">
+        自動關閉日期 (晚上10:00)： 
+        <input type="date" id="orderCloseDate">
       </label><br>
       <button id="saveOrderModeBtn">儲存設定</button>
       <div id="orderModeMsg" style="color:#ff9800; margin-top:10px;"></div>
@@ -132,55 +106,75 @@ document.addEventListener("DOMContentLoaded", () => {
   const loginMsg = document.getElementById("loginMsg");
   const logoutBtn = document.getElementById("logoutBtn");
 
-  let inactivityTimer = null;
-  const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10分鐘
+  const orderOpenCheckbox = document.getElementById("orderOpen");
+  const orderCloseDateInput = document.getElementById("orderCloseDate");
+  const saveOrderModeBtn = document.getElementById("saveOrderModeBtn");
+  const orderModeMsg = document.getElementById("orderModeMsg");
 
+  // 登出
   function logout() {
     localStorage.removeItem("loginTime");
     adminPanel.style.display = "none";
     loginSection.style.display = "block";
-    logoutBtn.style.display = "none"; // 登出按鈕隱藏
   }
-
   logoutBtn.addEventListener("click", logout);
 
-  // 登入功能
+  // 登入
   loginBtn.addEventListener("click", async () => {
     const username = document.getElementById("adminUser").value.trim();
     const password = document.getElementById("adminPass").value.trim();
     if(!username || !password){ loginMsg.textContent="請輸入帳號與密碼"; return; }
 
-    try {
-      const res = await fetch("/api/admin/login", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({user:username, pass:password})
-      });
-      const data = await res.json();
-      if(data.success){
-        loginSection.style.display="none";
-        adminPanel.style.display="block";
-        loginMsg.textContent="";
-        localStorage.setItem("loginTime", Date.now());
-        logoutBtn.style.display = "inline-block"; // 登入後顯示登出按鈕
-      } else loginMsg.textContent=data.message || "帳號或密碼錯誤";
-    } catch(err){
-      loginMsg.textContent = "登入失敗：" + err.message;
-    }
+    const res = await fetch("/api/admin/login", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({user:username, pass:password})
+    });
+    const data = await res.json();
+    if(data.success){
+      loginSection.style.display="none";
+      adminPanel.style.display="block";
+      loginMsg.textContent="";
+      loadOrderMode();
+    } else loginMsg.textContent=data.message;
   });
 
-  // 檢查是否已登入
-  const savedLogin = localStorage.getItem("loginTime");
-  if(savedLogin && (Date.now() - savedLogin < INACTIVITY_LIMIT)){
-    loginSection.style.display="none";
-    adminPanel.style.display="block";
-    logoutBtn.style.display = "inline-block"; // 登入狀態下顯示登出
+  // 載入狀態
+  async function loadOrderMode(){
+    const res = await fetch("/api/orderMode");
+    const data = await res.json();
+    if(data.success){
+      orderOpenCheckbox.checked = data.data.open;
+      orderCloseDateInput.value = data.schedule.date || "";
+    }
   }
+
+  // 儲存狀態
+  saveOrderModeBtn.addEventListener("click", async ()=>{
+    const open = orderOpenCheckbox.checked;
+    const date = orderCloseDateInput.value;
+
+    await fetch("/api/orderMode", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({ open })
+    });
+
+    await fetch("/api/schedule", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({ enabled: !!date, date })
+    });
+
+    orderModeMsg.textContent = "設定已儲存";
+    setTimeout(()=>orderModeMsg.textContent="",2000);
+  });
+
 });
 </script>
 
 <footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
-  ※本系統使用免費方案，如遇錯誤頁面刷新即可，需更改便當數量或其他東西請找相關股長處理，bug反饋/忘記帳號密碼，聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
+  ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/忘記帳號密碼，聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
 </footer>
 
 </body>
