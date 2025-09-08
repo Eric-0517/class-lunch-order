@@ -86,7 +86,7 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
 
     <!-- ===== 送單模式設定 ===== -->
     <div id="orderModeSection">
-      <h2>送單模式設定</h2>
+      <h2>功能設定</h2>
       <label>
         <input type="checkbox" id="orderOpen"> 開放送單
       </label><br>
@@ -126,7 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function resetInactivityTimer() {
     if(inactivityTimer) clearTimeout(inactivityTimer);
     inactivityTimer = setTimeout(() => {
-      alert("已超過10分鐘未操作，自動登出");
+      alert("已超過10分鐘未操作，系統已將您登出");
       logout();
     }, INACTIVITY_LIMIT);
   }
