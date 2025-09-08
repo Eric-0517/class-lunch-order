@@ -1,131 +1,342 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <title>後台管理</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0b0f14;
-      color: #cfe9ff;
-      padding: 20px;
-    }
-    h1 {
-      color: #37b7ff;
-    }
-    .panel {
-      background: #111824;
-      padding: 20px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      box-shadow: 0 0 10px rgba(55,183,255,.25);
-    }
-    button {
-      background: #37b7ff;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 8px;
-      cursor: pointer;
-      color: #fff;
-      font-size: 14px;
-      margin-top: 10px;
-    }
-    button:hover {
-      background: #2a9edb;
-    }
-    label {
-      display: block;
-      margin-top: 10px;
-    }
-    input[type="date"] {
-      padding: 5px;
-      border-radius: 5px;
-      border: 1px solid #37b7ff;
-      background: #0b0f14;
-      color: #cfe9ff;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>後台管理 - 國二一便當訂購系統</title>
+<link rel="stylesheet" href="./style.css">
+<style>
+body { font-family: Arial, sans-serif; background:#0b0f14; color:#cfe9ff; margin:0; padding:20px; }
+header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111824; }
+.logo { font-size:1.5em; font-weight:bold; }
+.header-buttons { display:flex; gap:10px; }
+.admin-link, .logout-btn { color:#cfe9ff; text-decoration:none; font-size:1em; font-weight:bold; background:#2196f3; padding:6px 12px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; height:36px; }
+.logout-btn:hover, .admin-link:hover { opacity:0.9; }
+
+.delete-btn { background:red; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
+.delete-btn:hover { background:#a80000; }
+table { border-collapse: collapse; width:100%; margin-top:15px; }
+th, td { border:1px solid #37b7ff; padding:5px; text-align:center; }
+#dailyStatsSection { margin-top:30px; }
+footer { margin-top:30px; font-size:0.8em; color:#888; }
+
+/* 輸入框樣式 */
+.input-field {
+  width: 250px;
+  padding: 8px 12px;
+  margin: 5px 0;
+  border-radius: 6px;
+  border: 1px solid #37b7ff;
+  background: #111824;
+  color: #cfe9ff;
+}
+
+/* 登入按鈕 */
+.login-btn {
+  padding: 8px 20px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 6px;
+  background-color: #4caf50;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+.login-btn:hover { opacity: 0.9; }
+
+/* 送單模式區塊 */
+#orderModeSection { margin-top:30px; border:1px solid #37b7ff; padding:15px; border-radius:6px; }
+#orderModeSection label { margin-right:10px; }
+#orderModeSection input[type="date"] { background:#111824; color:#cfe9ff; border:1px solid #37b7ff; border-radius:6px; padding:4px 8px; }
+#orderModeSection button { margin-top:10px; padding:6px 12px; border:none; border-radius:6px; background:#2196f3; color:white; cursor:pointer; }
+#orderModeSection button:hover { opacity:0.9; }
+</style>
 </head>
 <body>
-  <h1>後台管理系統</h1>
 
-  <!-- 開放/不開放送單 -->
-  <div class="panel">
-    <h2>送單狀態管理</h2>
-    <p>目前狀態：<span id="orderStatus">讀取中...</span></p>
-    <button onclick="toggleOrderStatus()">切換開放/不開放</button>
+<header>
+  <div class="logo">後台管理 - 國二一便當訂購系統</div>
+  <div class="header-buttons">
+    <a href="./index.html" class="admin-link">返回前台</a>
+    <span class="logout-btn" id="logoutBtn" style="display:none;">登出</span>
+  </div>
+</header>
+
+<main>
+  <!-- 登入區 -->
+  <div id="loginSection">
+    <h2>管理員登入</h2>
+    <input type="text" id="adminUser" placeholder="帳號" class="input-field"><br>
+    <input type="password" id="adminPass" placeholder="密碼" class="input-field"><br>
+    <button id="loginBtn" class="login-btn">登入</button>
+    <div id="loginMsg" style="color:red; margin-top:10px;"></div>
   </div>
 
-  <!-- 定時設定 -->
-  <div class="panel">
-    <h2>定時設定</h2>
-    <p>功能狀態：<span id="scheduleStatus">讀取中...</span></p>
-    <label>
-      <input type="checkbox" id="scheduleToggle" onchange="toggleSchedule()"> 開啟/關閉定時設定
-    </label>
-    <label for="scheduleDate">選擇日期：</label>
-    <input type="date" id="scheduleDate">
-    <p>固定執行時間：晚上 22:00</p>
-    <button onclick="saveSchedule()">儲存設定</button>
+  <!-- 後台統計區 -->
+  <div id="adminPanel" style="display:none;">
+    <h2>所有訂單統計</h2>
+    <div id="statsResult"></div>
+
+    <div id="dailyStatsSection">
+      <h2>每日訂單統計</h2>
+      <div id="dailyStatsResult" style="margin-top:15px;"></div>
+    </div>
+
+    <button id="deleteAllBtn" class="delete-btn" style="margin-top:15px;">刪除全部訂單</button>
+
+    <!-- ===== 送單模式設定 ===== -->
+    <div id="orderModeSection">
+      <h2>送單模式設定</h2>
+      <label>
+        <input type="checkbox" id="orderOpen"> 開放送單
+      </label><br>
+
+      <h3 style="margin-top:15px;">定時設定</h3>
+      <label>
+        <input type="checkbox" id="scheduleEnabled"> 開啟定時設定
+      </label><br>
+      <label>
+        執行日期：
+        <input type="date" id="scheduleDate">
+      </label><br>
+      <p style="margin:5px 0;">固定執行時間：晚上 22:00</p>
+
+      <button id="saveOrderModeBtn">儲存設定</button>
+      <div id="orderModeMsg" style="color:#ff9800; margin-top:10px;"></div>
+    </div>
   </div>
+</main>
 
-  <script>
-    async function fetchStatus() {
-      try {
-        const res = await fetch('/api/status');
-        const data = await res.json();
-        document.getElementById('orderStatus').textContent = data.isOpen ? '開放' : '不開放';
-        document.getElementById('scheduleStatus').textContent = data.schedule.enabled ? '已開啟' : '已關閉';
-        document.getElementById('scheduleToggle').checked = data.schedule.enabled;
-        document.getElementById('scheduleDate').value = data.schedule.date || '';
-      } catch (err) {
-        console.error(err);
-      }
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const loginSection = document.getElementById("loginSection");
+  const adminPanel = document.getElementById("adminPanel");
+  const loginBtn = document.getElementById("loginBtn");
+  const loginMsg = document.getElementById("loginMsg");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  let inactivityTimer = null;
+  const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10分鐘
+  const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨","今日不訂購"];
+  const dayNames = ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"];
+  let allOrders = [];
+
+  const orderOpenCheckbox = document.getElementById("orderOpen");
+  const saveOrderModeBtn = document.getElementById("saveOrderModeBtn");
+  const orderModeMsg = document.getElementById("orderModeMsg");
+  const statsResult = document.getElementById("statsResult");
+  const dailyStatsResult = document.getElementById("dailyStatsResult");
+  const deleteAllBtn = document.getElementById("deleteAllBtn");
+
+  // ===== 自動登出 =====
+  function resetInactivityTimer() {
+    if(inactivityTimer) clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(() => {
+      alert("已超過10分鐘未操作，自動登出");
+      logout();
+    }, INACTIVITY_LIMIT);
+  }
+
+  ['click','mousemove','keydown','scroll'].forEach(evt => {
+    document.addEventListener(evt, resetInactivityTimer);
+  });
+
+  function logout() {
+    localStorage.removeItem("loginTime");
+    adminPanel.style.display = "none";
+    loginSection.style.display = "block";
+    logoutBtn.style.display = "none";
+  }
+
+  logoutBtn.addEventListener("click", logout);
+
+  // ===== 登入功能 =====
+  loginBtn.addEventListener("click", async () => {
+    const username = document.getElementById("adminUser").value.trim();
+    const password = document.getElementById("adminPass").value.trim();
+    if(!username || !password){ loginMsg.textContent="請輸入帳號與密碼"; return; }
+
+    try {
+      const res = await fetch("/api/admin/login", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({user:username, pass:password})
+      });
+      const data = await res.json();
+      if(data.success){
+        loginSection.style.display="none";
+        adminPanel.style.display="block";
+        logoutBtn.style.display = "inline-flex";
+        loginMsg.textContent="";
+        localStorage.setItem("loginTime", Date.now());
+        resetInactivityTimer();
+        loadOrders();
+        loadOrderMode();
+      } else loginMsg.textContent=data.message || "帳號或密碼錯誤";
+    } catch(err){
+      loginMsg.textContent = "登入失敗：" + err.message;
     }
+  });
 
-    async function toggleOrderStatus() {
-      try {
-        await fetch('/api/toggle-order', { method: 'POST' });
-        fetchStatus();
-      } catch (err) {
-        console.error(err);
+  // ===== 檢查是否已登入 =====
+  const savedLogin = localStorage.getItem("loginTime");
+  if(savedLogin && (Date.now() - savedLogin < INACTIVITY_LIMIT)){
+    loginSection.style.display="none";
+    adminPanel.style.display="block";
+    logoutBtn.style.display = "inline-flex";
+    resetInactivityTimer();
+    loadOrders();
+    loadOrderMode();
+  }
+
+  // ===== 其他功能: 訂單載入/渲染/刪除 =====
+  async function loadOrders(){
+    try {
+      const res = await fetch("/api/orders");
+      const data = await res.json();
+      if(data.success){
+        allOrders = data.data;
+        renderAllOrders(allOrders);
+        renderDailyStats();
       }
-    }
+    } catch(err){ alert("載入訂單失敗：" + err.message); }
+  }
 
-    async function toggleSchedule() {
-      const enabled = document.getElementById('scheduleToggle').checked;
-      try {
-        await fetch('/api/toggle-schedule', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enabled })
+  function renderAllOrders(orders){
+    const seatMap = {};
+    orders.forEach(o=>{
+      const seat = o.seat;
+      if(!seatMap[seat]) seatMap[seat]=[];
+      seatMap[seat].push(o);
+    });
+
+    let html = `<table>
+      <tr>
+        <th>座號</th>
+        <th>品項</th>
+        <th>數量</th>
+        <th>總金額</th>
+        <th>操作</th>
+      </tr>`;
+
+    Object.keys(seatMap).forEach(seat=>{
+      const items = seatMap[seat];
+      const counts = {};
+      items.forEach(i=>{
+        i.items.forEach(it=>{
+          counts[it.typeName] = (counts[it.typeName]||0)+1;
         });
-        fetchStatus();
-      } catch (err) {
-        console.error(err);
+      });
+      const totalPrice = Object.keys(counts).reduce((sum,type)=>type!=="今日不訂購"?sum+counts[type]*70:sum,0);
+      let first = true;
+      for(let type in counts){
+        html += `<tr>
+          ${first?`<td rowspan="${Object.keys(counts).length}">${seat}</td>`:""}
+          <td>${type}</td>
+          <td>${counts[type]}</td>
+          ${first?`<td rowspan="${Object.keys(counts).length}">${totalPrice}</td>`:""}
+          ${first?`<td rowspan="${Object.keys(counts).length}"><button class="delete-btn" data-seat="${seat}">刪除</button></td>`:""}
+        </tr>`;
+        first=false;
       }
-    }
+    });
 
-    async function saveSchedule() {
-      const date = document.getElementById('scheduleDate').value;
-      if (!date) {
-        alert('請選擇日期');
-        return;
-      }
-      try {
-        await fetch('/api/set-schedule', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date })
+    html += `</table>`;
+    statsResult.innerHTML = html;
+    bindDeleteButtons();
+  }
+
+  function bindDeleteButtons(){
+    document.querySelectorAll(".delete-btn").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const seat = btn.dataset.seat;
+        if(confirm(`確認刪除座號 ${seat} 的所有訂單？`)){
+          fetch("/api/orders", {
+            method:"DELETE",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({seat})
+          })
+          .then(res=>res.json())
+          .then(d=>{ if(d.success){ alert("刪除成功"); loadOrders(); } else alert(d.message); });
+        }
+      });
+    });
+  }
+
+  deleteAllBtn.addEventListener("click", ()=>{
+    if(confirm("確認刪除全部訂單？")){
+      fetch("/api/orders/all", { method:"DELETE" })
+        .then(res=>res.json())
+        .then(d=>{ if(d.success){ alert("全部訂單已刪除"); loadOrders(); } else alert(d.message); });
+    }
+  });
+
+  function renderDailyStats(){
+    if(allOrders.length === 0){
+      dailyStatsResult.innerHTML = "<p>目前沒有資料</p>";
+      return;
+    }
+    let html = "";
+    dayNames.forEach(day => {
+      const ordersForDay = [];
+      allOrders.forEach(order => {
+        order.items.forEach(item => {
+          if(item.day === day) ordersForDay.push(item);
         });
-        alert('定時設定已更新 (時間固定為 22:00)');
-        fetchStatus();
-      } catch (err) {
-        console.error(err);
-      }
-    }
+      });
+      if(ordersForDay.length === 0) return;
+      const counts = {};
+      mealTypes.forEach(type => counts[type] = 0);
+      ordersForDay.forEach(item => { counts[item.typeName] = (counts[item.typeName]||0)+1; });
+      const totalCount = Object.keys(counts).reduce((sum,type)=> type!=="今日不訂購"?sum+counts[type]:sum,0);
+      const totalAmount = totalCount * 70;
+      html += `<h3>${day}</h3>`;
+      html += `<table>
+        <tr><th>品項</th><th>數量</th><th>金額</th></tr>`;
+      mealTypes.forEach(type => {
+        if(counts[type] > 0 && type !== "今日不訂購"){
+          html += `<tr><td>${type}</td><td>${counts[type]}</td><td>${counts[type]*70}</td></tr>`;
+        }
+      });
+      html += `<tr><td><b>總計</b></td><td><b>${totalCount}</b></td><td><b>${totalAmount}</b></td></tr>`;
+      html += `</table><br>`;
+    });
+    dailyStatsResult.innerHTML = html;
+  }
 
-    fetchStatus();
-  </script>
+  // ===== 送單模式設定 =====
+  const scheduleEnabled = document.getElementById("scheduleEnabled");
+  const scheduleDate = document.getElementById("scheduleDate");
+
+  function loadOrderMode() {
+    const saved = localStorage.getItem("orderMode");
+    if(saved){
+      try {
+        const mode = JSON.parse(saved);
+        orderOpenCheckbox.checked = mode.open ?? false;
+        scheduleEnabled.checked = mode.scheduleEnabled ?? false;
+        scheduleDate.value = mode.scheduleDate ?? "";
+      } catch(e){}
+    }
+  }
+
+  saveOrderModeBtn.addEventListener("click", ()=>{
+    const mode = {
+      open: orderOpenCheckbox.checked,
+      scheduleEnabled: scheduleEnabled.checked,
+      scheduleDate: scheduleDate.value
+    };
+    localStorage.setItem("orderMode", JSON.stringify(mode));
+    orderModeMsg.textContent = "設定已儲存";
+    setTimeout(()=>orderModeMsg.textContent="",2000);
+  });
+
+});
+</script>
+
+<footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
+  ※如需更改便當數量或其他東西請找相關股長處理，bug反饋/忘記帳號密碼，聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
+</footer>
+
 </body>
 </html>
