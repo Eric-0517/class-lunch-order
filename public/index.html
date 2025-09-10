@@ -198,7 +198,7 @@ submitBtn.addEventListener('click', async ()=>{
 
   const totalPrice = items.reduce((sum,i)=>sum + (i.typeName==='今日不訂購'?0:70),0);
 
-  // ✅ 恢復確認提示
+  // ✅ 第一步：確認是否正確
   if(!confirm(`確認便當是否訂購無誤？\n共計金額：${totalPrice} 元`)) return;
 
   try{
@@ -211,6 +211,9 @@ submitBtn.addEventListener('click', async ()=>{
     if(data.success){
       document.querySelectorAll('input[type=radio]').forEach(r=>r.checked=false);
       document.getElementById('total-price').textContent=0;
+
+      // ✅ 第二步：成功提示
+      alert("訂購成功！\n請至歷史訂單查詢頁面查看！");
     }
   }catch(err){
     console.error("訂單送出失敗：" + err.message);
