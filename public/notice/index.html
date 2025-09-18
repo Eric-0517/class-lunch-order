@@ -71,7 +71,7 @@
       container.innerHTML = '<p class="empty">載入中...</p>';
 
       try {
-        const res = await fetch("/notice/posts.json");
+        const res = await fetch("/posts.json");
         if (!res.ok) throw new Error("公告清單載入失敗");
         const data = await res.json();
 
