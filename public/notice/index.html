@@ -54,10 +54,32 @@
       margin-bottom: 20px;
       color: #cfe9ff;
     }
+    .back-btn {
+      display: block;
+      width: 200px;
+      margin: 20px auto;
+      padding: 10px 20px;
+      background: #4caf50;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      text-align: center;
+      text-decoration: none;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .back-btn:hover {
+      background: #3a9d40;
+    }
   </style>
 </head>
 <body>
   <h1>公告專區</h1>
+
+  <!-- 返回訂購系統按鈕 -->
+  <a class="back-btn" href="../public/index.html">返回訂購系統</a>
+
   <div class="notice-container" id="noticeContainer">
     <p class="empty">載入中...</p>
   </div>
@@ -68,7 +90,6 @@
       container.innerHTML = '<p class="empty">載入中...</p>';
 
       try {
-        // fetch 公告 JSON
         const res = await fetch("./posts.json");
         if (!res.ok) throw new Error("公告清單載入失敗");
         const data = await res.json();
