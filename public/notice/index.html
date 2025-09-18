@@ -3,59 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <title>公告專區</title>
+  <link rel="stylesheet" href="../style.css"> <!-- 使用原本 CSS -->
   <style>
-    body {
-      font-family: "Microsoft JhengHei", Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      background-color: #f4f6f9;
-      color: #333;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-      color: #2c3e50;
-    }
+    /* 公告專區額外樣式 */
     .notice-container {
       max-width: 800px;
       margin: 0 auto;
+      padding: 20px 0;
     }
     .notice-card {
-      background: #fff;
+      background: #111824;
       border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
       margin-bottom: 20px;
       padding: 20px;
+      color: #cfe9ff;
     }
     .notice-title {
       font-size: 20px;
       font-weight: bold;
       margin-bottom: 10px;
-      color: #007acc;
+      color: #37b7ff;
     }
     .notice-content {
       font-size: 14px;
-      color: #555;
+      color: #cfe9ff;
       margin-bottom: 15px;
     }
     .read-more {
       display: inline-block;
       padding: 8px 14px;
-      background: #007acc;
-      color: #fff;
+      background: #37b7ff;
+      color: #111824;
       border-radius: 6px;
       text-decoration: none;
       font-size: 14px;
       transition: 0.2s;
     }
     .read-more:hover {
-      background: #005f99;
+      background: #0b86e8;
     }
     .empty {
       text-align: center;
       font-size: 16px;
       color: #888;
       margin-top: 50px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #cfe9ff;
     }
   </style>
 </head>
@@ -71,7 +68,7 @@
       container.innerHTML = '<p class="empty">載入中...</p>';
 
       try {
-        // fetch 公告 JSON，路徑改成 /notice/posts.json
+        // fetch 公告 JSON
         const res = await fetch("./posts.json");
         if (!res.ok) throw new Error("公告清單載入失敗");
         const data = await res.json();
@@ -94,6 +91,7 @@
           container.appendChild(card);
         });
       } catch (err) {
+        console.error(err);
         container.innerHTML = '<p class="empty">無法載入公告！</p>';
       }
     }
