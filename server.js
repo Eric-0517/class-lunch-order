@@ -6,7 +6,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // -------------------- MongoDB 設定 --------------------
-mongoose.connect('mongodb://localhost:27017/lunch-order', {
+mongoose.connect('mongodb+srv://admin:aa980517@cluster0.1yktzwj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0', {
   useNewUrlParser: true,
   useUnifiedTopology: true
 }).then(()=>console.log("✅ MongoDB connected"))
