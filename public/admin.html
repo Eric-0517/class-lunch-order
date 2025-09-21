@@ -20,34 +20,14 @@ th, td { border:1px solid #37b7ff; padding:5px; text-align:center; }
 #dailyStatsSection { margin-top:30px; }
 footer { margin-top:30px; font-size:0.8em; color:#888; }
 
-/* 輸入框樣式 */
-.input-field {
-  width: 250px;
-  padding: 8px 12px;
-  margin: 5px 0;
-  border-radius: 6px;
-  border: 1px solid #37b7ff;
-  background: #111824;
-  color: #cfe9ff;
-}
+.input-field { width: 250px; padding: 8px 12px; margin: 5px 0; border-radius: 6px; border: 1px solid #37b7ff; background: #111824; color: #cfe9ff; }
 
-/* 登入按鈕 */
-.login-btn {
-  padding: 8px 20px;
-  margin-top: 10px;
-  border: none;
-  border-radius: 6px;
-  background-color: #4caf50;
-  color: white;
-  font-size: 14px;
-  cursor: pointer;
-}
+.login-btn { padding: 8px 20px; margin-top: 10px; border: none; border-radius: 6px; background-color: #4caf50; color: white; font-size: 14px; cursor: pointer; }
 .login-btn:hover { opacity: 0.9; }
 
-/* 送單模式區塊 */
 #orderModeSection { margin-top:30px; border:1px solid #37b7ff; padding:15px; border-radius:6px; }
 #orderModeSection label { margin-right:10px; }
-#orderModeSection input[type="date"] { background:#111824; color:#cfe9ff; border:1px solid #37b7ff; border-radius:6px; padding:4px 8px; }
+#orderModeSection input[type="date"], #orderModeSection input[type="time"] { background:#111824; color:#cfe9ff; border:1px solid #37b7ff; border-radius:6px; padding:4px 8px; }
 #orderModeSection button { margin-top:10px; padding:6px 12px; border:none; border-radius:6px; background:#2196f3; color:white; cursor:pointer; }
 #orderModeSection button:hover { opacity:0.9; }
 </style>
@@ -63,7 +43,6 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
 </header>
 
 <main>
-  <!-- 登入區 -->
   <div id="loginSection">
     <h2>管理員登入</h2>
     <input type="text" id="adminUser" placeholder="帳號" class="input-field"><br>
@@ -72,7 +51,6 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
     <div id="loginMsg" style="color:red; margin-top:10px;"></div>
   </div>
 
-  <!-- 後台統計區 -->
   <div id="adminPanel" style="display:none;">
     <h2>所有訂單統計</h2>
     <div id="statsResult"></div>
@@ -84,7 +62,6 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
 
     <button id="deleteAllBtn" class="delete-btn" style="margin-top:15px;">刪除全部訂單</button>
 
-    <!-- ===== 送單模式設定 ===== -->
     <div id="orderModeSection">
       <h2>功能設定</h2>
       <label>
@@ -99,7 +76,10 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
         執行日期：
         <input type="date" id="scheduleDate">
       </label><br>
-      <p style="margin:5px 0;">固定執行時間：晚上 22:00</p>
+      <label>
+        執行時間：
+        <input type="time" id="scheduleTime">
+      </label>
 
       <button id="saveOrderModeBtn">儲存設定</button>
       <div id="orderModeMsg" style="color:#ff9800; margin-top:10px;"></div>
@@ -115,8 +95,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const loginMsg = document.getElementById("loginMsg");
   const logoutBtn = document.getElementById("logoutBtn");
 
+  const INACTIVITY_LIMIT = 10 * 60 * 1000;
   let inactivityTimer = null;
-  const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10分鐘
   const mealTypes = ["正園A","正園B","御饌A","御饌B","悦馨","今日不訂購"];
   const dayNames = ["禮拜一","禮拜二","禮拜三","禮拜四","禮拜五"];
   let allOrders = [];
@@ -128,7 +108,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const dailyStatsResult = document.getElementById("dailyStatsResult");
   const deleteAllBtn = document.getElementById("deleteAllBtn");
 
-  // ===== 自動登出 =====
   function resetInactivityTimer() {
     if(inactivityTimer) clearTimeout(inactivityTimer);
     inactivityTimer = setTimeout(() => {
@@ -136,7 +115,6 @@ document.addEventListener("DOMContentLoaded", () => {
       logout();
     }, INACTIVITY_LIMIT);
   }
-
   ['click','mousemove','keydown','scroll'].forEach(evt => {
     document.addEventListener(evt, resetInactivityTimer);
   });
@@ -147,10 +125,8 @@ document.addEventListener("DOMContentLoaded", () => {
     loginSection.style.display = "block";
     logoutBtn.style.display = "none";
   }
-
   logoutBtn.addEventListener("click", logout);
 
-  // ===== 登入功能 =====
   loginBtn.addEventListener("click", async () => {
     const username = document.getElementById("adminUser").value.trim();
     const password = document.getElementById("adminPass").value.trim();
@@ -178,7 +154,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ===== 檢查是否已登入 =====
   const savedLogin = localStorage.getItem("loginTime");
   if(savedLogin && (Date.now() - savedLogin < INACTIVITY_LIMIT)){
     loginSection.style.display="none";
@@ -189,7 +164,6 @@ document.addEventListener("DOMContentLoaded", () => {
     loadOrderMode();
   }
 
-  // ===== 其他功能: 訂單載入/渲染/刪除 =====
   async function loadOrders(){
     try {
       const res = await fetch("/api/orders");
@@ -204,29 +178,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderAllOrders(orders){
     const seatMap = {};
-    orders.forEach(o=>{
-      const seat = o.seat;
-      if(!seatMap[seat]) seatMap[seat]=[];
-      seatMap[seat].push(o);
-    });
+    orders.forEach(o=>{ if(!seatMap[o.seat]) seatMap[o.seat]=[]; seatMap[o.seat].push(o); });
 
-    let html = `<table>
-      <tr>
-        <th>座號</th>
-        <th>品項</th>
-        <th>數量</th>
-        <th>總金額</th>
-        <th>操作</th>
-      </tr>`;
-
+    let html = `<table><tr><th>座號</th><th>品項</th><th>數量</th><th>總金額</th><th>操作</th></tr>`;
     Object.keys(seatMap).forEach(seat=>{
       const items = seatMap[seat];
       const counts = {};
-      items.forEach(i=>{
-        i.items.forEach(it=>{
-          counts[it.typeName] = (counts[it.typeName]||0)+1;
-        });
-      });
+      items.forEach(i=>i.items.forEach(it=>{ counts[it.typeName] = (counts[it.typeName]||0)+1; }));
       const totalPrice = Object.keys(counts).reduce((sum,type)=>type!=="今日不訂購"?sum+counts[type]*70:sum,0);
       let first = true;
       for(let type in counts){
@@ -236,11 +194,9 @@ document.addEventListener("DOMContentLoaded", () => {
           <td>${counts[type]}</td>
           ${first?`<td rowspan="${Object.keys(counts).length}">${totalPrice}</td>`:""}
           ${first?`<td rowspan="${Object.keys(counts).length}"><button class="delete-btn" data-seat="${seat}">刪除</button></td>`:""}
-        </tr>`;
-        first=false;
+        </tr>`; first=false;
       }
     });
-
     html += `</table>`;
     statsResult.innerHTML = html;
     bindDeleteButtons();
@@ -255,9 +211,7 @@ document.addEventListener("DOMContentLoaded", () => {
             method:"DELETE",
             headers:{"Content-Type":"application/json"},
             body:JSON.stringify({seat})
-          })
-          .then(res=>res.json())
-          .then(d=>{ if(d.success){ alert("刪除成功"); loadOrders(); } else alert(d.message); });
+          }).then(res=>res.json()).then(d=>{ if(d.success){ alert("刪除成功"); loadOrders(); } else alert(d.message); });
         }
       });
     });
@@ -272,64 +226,76 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   function renderDailyStats(){
-    if(allOrders.length === 0){
-      dailyStatsResult.innerHTML = "<p>目前沒有資料</p>";
-      return;
-    }
-    let html = "";
-    dayNames.forEach(day => {
+    if(allOrders.length===0){ dailyStatsResult.innerHTML="<p>目前沒有資料</p>"; return; }
+    let html="";
+    dayNames.forEach(day=>{
       const ordersForDay = [];
-      allOrders.forEach(order => {
-        order.items.forEach(item => {
-          if(item.day === day) ordersForDay.push(item);
-        });
-      });
-      if(ordersForDay.length === 0) return;
-      const counts = {};
-      mealTypes.forEach(type => counts[type] = 0);
-      ordersForDay.forEach(item => { counts[item.typeName] = (counts[item.typeName]||0)+1; });
-      const totalCount = Object.keys(counts).reduce((sum,type)=> type!=="今日不訂購"?sum+counts[type]:sum,0);
-      const totalAmount = totalCount * 70;
-      html += `<h3>${day}</h3>`;
-      html += `<table>
-        <tr><th>品項</th><th>數量</th><th>金額</th></tr>`;
-      mealTypes.forEach(type => {
-        if(counts[type] > 0 && type !== "今日不訂購"){
-          html += `<tr><td>${type}</td><td>${counts[type]}</td><td>${counts[type]*70}</td></tr>`;
-        }
-      });
-      html += `<tr><td><b>總計</b></td><td><b>${totalCount}</b></td><td><b>${totalAmount}</b></td></tr>`;
-      html += `</table><br>`;
+      allOrders.forEach(order=>order.items.forEach(item=>{ if(item.day===day) ordersForDay.push(item); }));
+      if(ordersForDay.length===0) return;
+      const counts={}; mealTypes.forEach(type=>counts[type]=0);
+      ordersForDay.forEach(item=>{ counts[item.typeName]=(counts[item.typeName]||0)+1; });
+      const totalCount = Object.keys(counts).reduce((sum,type)=>type!=="今日不訂購"?sum+counts[type]:sum,0);
+      const totalAmount = totalCount*70;
+      html+=`<h3>${day}</h3><table><tr><th>品項</th><th>數量</th><th>金額</th></tr>`;
+      mealTypes.forEach(type=>{ if(counts[type]>0&&type!=="今日不訂購"){ html+=`<tr><td>${type}</td><td>${counts[type]}</td><td>${counts[type]*70}</td></tr>`;} });
+      html+=`<tr><td><b>總計</b></td><td><b>${totalCount}</b></td><td><b>${totalAmount}</b></td></tr></table><br>`;
     });
-    dailyStatsResult.innerHTML = html;
+    dailyStatsResult.innerHTML=html;
   }
 
-  // ===== 送單模式設定 =====
   const scheduleEnabled = document.getElementById("scheduleEnabled");
   const scheduleDate = document.getElementById("scheduleDate");
+  const scheduleTime = document.getElementById("scheduleTime");
+  let autoCloseTimer = null;
 
-  function loadOrderMode() {
-    const saved = localStorage.getItem("orderMode");
-    if(saved){
-      try {
-        const mode = JSON.parse(saved);
+  function loadOrderMode(){
+    fetch("/api/orderMode").then(res=>res.json()).then(data=>{
+      if(data.success && data.data){
+        const mode = data.data;
         orderOpenCheckbox.checked = mode.open ?? false;
         scheduleEnabled.checked = mode.scheduleEnabled ?? false;
         scheduleDate.value = mode.scheduleDate ?? "";
-      } catch(e){}
-    }
+        scheduleTime.value = mode.scheduleTime ?? "";
+
+        if(mode.scheduleEnabled && mode.scheduleDate && mode.scheduleTime){
+          setupAutoClose(mode.scheduleDate, mode.scheduleTime);
+        }
+      }
+    });
   }
 
   saveOrderModeBtn.addEventListener("click", ()=>{
     const mode = {
       open: orderOpenCheckbox.checked,
       scheduleEnabled: scheduleEnabled.checked,
-      scheduleDate: scheduleDate.value
+      scheduleDate: scheduleDate.value,
+      scheduleTime: scheduleTime.value
     };
-    localStorage.setItem("orderMode", JSON.stringify(mode));
-    orderModeMsg.textContent = "設定已儲存";
-    setTimeout(()=>orderModeMsg.textContent="",2000);
+    fetch("/api/orderMode", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(mode)
+    }).then(res=>res.json()).then(d=>{
+      if(d.success){ orderModeMsg.textContent="設定已儲存"; setTimeout(()=>orderModeMsg.textContent="",2000); }
+
+      if(mode.scheduleEnabled && mode.scheduleDate && mode.scheduleTime){
+        setupAutoClose(mode.scheduleDate, mode.scheduleTime);
+      }
+    });
   });
+
+  function setupAutoClose(dateStr, timeStr){
+    if(autoCloseTimer) clearTimeout(autoCloseTimer);
+    const [hours, minutes] = timeStr.split(":").map(Number);
+    const target = new Date(dateStr); target.setHours(hours, minutes, 0, 0);
+    const delay = target - new Date();
+    if(delay<=0){ orderOpenCheckbox.checked=false; alert("送單時間已到，自動關閉送單！"); return; }
+    autoCloseTimer = setTimeout(()=>{
+      orderOpenCheckbox.checked=false;
+      alert("送單時間已到，自動關閉送單！");
+      fetch("/api/orderMode/close", {method:"POST"});
+    }, delay);
+  }
 
 });
 </script>
