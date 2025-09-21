@@ -111,6 +111,11 @@ footer {
   font-size: 15px;
   line-height: 1.6;
 }
+.notification__content-txt a {
+  color: red;            /* 🔴 連結文字紅色 */
+  font-weight: bold;     /* 加粗讓它更明顯 */
+  text-decoration: underline;
+}
 .rountbutton { text-align: center; margin-top: 20px; }
 .rountbutton__widget {
   background: #2196f3;
@@ -189,7 +194,7 @@ footer {
 </div>
 
 <script>
-// === 原本座號、便當選項、訂單處理 ===
+/* === 原本座號、便當選項、訂單處理 === */
 const seatSelect = document.getElementById('seat-select');
 for(let i=1;i<=32;i++){
   const opt = document.createElement('option');
@@ -286,14 +291,14 @@ submitBtn.addEventListener('click', async ()=>{
   }
 });
 
-// === Modal 開關 ===
+/* === Modal 開關 === */
 function openModal() {
   document.getElementById('modal').style.display = 'flex';
 }
 function closeModal() {
   document.getElementById('modal').style.display = 'none';
 }
-window.onload = openModal; // 🚀 載入頁面時自動跳出
+window.onload = openModal;
 </script>
 
 <footer>
