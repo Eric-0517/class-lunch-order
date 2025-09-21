@@ -6,8 +6,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // -------------------- MongoDB 設定 --------------------
-const mongoose = require("mongoose");
-
 const MONGO_URI = "mongodb+srv://admin:aa980517@cluster0.1yktzwj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -46,6 +44,9 @@ let autoCloseTimer = null;
 // POST /api/order - 接收訂單
 app.post('/api/order', async (req, res) => {
   try {
+    const mode = await OrderMode.findOne();
+    if(!mode || !mode.open) return res.status(403).json({success:false,message:"目前不開放送單"});
+
     const { seat, items } = req.body;
     if (!seat || !items) return res.status(400).json({ success: false, message: '座號或訂單資料缺失' });
 
@@ -116,7 +117,7 @@ app.get('/api/orderMode', async (req, res) => {
   }
 });
 
-// 修改送單模式
+// 修改送單模式 (手動 + 定時)
 app.post('/api/orderMode', async (req, res) => {
   try {
     const { open, scheduleEnabled, scheduleDate, scheduleTime } = req.body;
@@ -133,7 +134,7 @@ app.post('/api/orderMode', async (req, res) => {
     res.json({ success: true, message: "送單設定已儲存" });
 
     // 設定自動關閉
-    if (scheduleEnabled && scheduleDate && scheduleTime) {
+    if (scheduleEnabled && scheduleDate && scheduleTime && open) {
       setupAutoClose(scheduleDate, scheduleTime);
     }
   } catch (err) {
@@ -141,7 +142,7 @@ app.post('/api/orderMode', async (req, res) => {
   }
 });
 
-// 自動關閉送單
+// 強制關閉送單
 app.post('/api/orderMode/close', async (req, res) => {
   try {
     let mode = await OrderMode.findOne();
@@ -154,21 +155,33 @@ app.post('/api/orderMode/close', async (req, res) => {
   }
 });
 
+// -------------------- 自動關閉送單 --------------------
 function setupAutoClose(dateStr, timeStr){
   if(autoCloseTimer) clearTimeout(autoCloseTimer);
+
   const [hours, minutes] = timeStr.split(":").map(Number);
   const target = new Date(dateStr);
   target.setHours(hours, minutes, 0, 0);
+
   const delay = target - new Date();
   if(delay <= 0){
     OrderMode.findOneAndUpdate({}, { open: false });
     return;
   }
+
   autoCloseTimer = setTimeout(async ()=>{
     await OrderMode.findOneAndUpdate({}, { open: false });
     console.log("⏰ 自動關閉送單");
   }, delay);
 }
 
-// 啟動伺服器
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+// -------------------- 啟動伺服器 --------------------
+app.listen(PORT, async () => {
+  console.log(`✅ Server running on port ${PORT}`);
+
+  // 伺服器啟動時檢查定時送單
+  const mode = await OrderMode.findOne();
+  if(mode && mode.scheduleEnabled && mode.scheduleDate && mode.scheduleTime && mode.open){
+    setupAutoClose(mode.scheduleDate, mode.scheduleTime);
+  }
+});
