@@ -91,6 +91,12 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+  const adminPanel = document.getElementById("adminPanel");
+  const loginSection = document.getElementById("loginSection");
+  const loginBtn = document.getElementById("loginBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const loginMsg = document.getElementById("loginMsg");
+
   const orderOpenCheckbox = document.getElementById("orderOpen");
   const scheduleEnabled = document.getElementById("scheduleEnabled");
   const scheduleDate = document.getElementById("scheduleDate");
@@ -100,6 +106,44 @@ document.addEventListener("DOMContentLoaded", () => {
   const orderStatus = document.getElementById("orderStatus");
   let autoCloseTimer = null;
 
+  /** ================= 登入 ================= **/
+  loginBtn.addEventListener("click", async () => {
+    const user = document.getElementById("adminUser").value.trim();
+    const pass = document.getElementById("adminPass").value.trim();
+    if (!user || !pass) {
+      loginMsg.textContent = "請輸入帳號與密碼";
+      return;
+    }
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ username: user, password: pass })
+      });
+      const data = await res.json();
+      if (data.success) {
+        loginSection.style.display = "none";
+        adminPanel.style.display = "block";
+        logoutBtn.style.display = "inline-block";
+        loginMsg.textContent = "";
+        loadOrderMode();
+      } else {
+        loginMsg.textContent = "登入失敗：" + (data.message || "帳號或密碼錯誤");
+      }
+    } catch (err) {
+      console.error("登入失敗", err);
+      loginMsg.textContent = "連線失敗，請稍後再試";
+    }
+  });
+
+  logoutBtn.addEventListener("click", async () => {
+    await fetch("/api/admin/logout", { method: "POST" });
+    adminPanel.style.display = "none";
+    loginSection.style.display = "block";
+    logoutBtn.style.display = "none";
+  });
+
+  /** ================= 送單狀態 ================= **/
   function updateStatus(open) {
     orderStatus.textContent = open ? "✅ 目前狀態：開放送單" : "❌ 目前狀態：未開放送單";
     orderStatus.style.color = open ? "lightgreen" : "red";
@@ -109,19 +153,18 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const res = await fetch("/api/orderMode");
       const data = await res.json();
-      if(data.success && data.data) {
+      if (data.success && data.data) {
         const mode = data.data;
         orderOpenCheckbox.checked = mode.open ?? false;
         scheduleEnabled.checked = mode.scheduleEnabled ?? false;
         scheduleDate.value = mode.scheduleDate ?? "";
         scheduleTime.value = mode.scheduleTime ?? "";
         updateStatus(mode.open);
-
-        if(mode.scheduleEnabled && mode.scheduleDate && mode.scheduleTime){
+        if (mode.scheduleEnabled && mode.scheduleDate && mode.scheduleTime) {
           setupAutoClose(mode.scheduleDate, mode.scheduleTime);
         }
       }
-    } catch(err) {
+    } catch (err) {
       console.error("載入失敗", err);
     }
   }
@@ -175,14 +218,11 @@ document.addEventListener("DOMContentLoaded", () => {
       fetch("/api/orderMode/close", {method:"POST"});
     }, delay);
   }
-
-  // 初始化載入
-  loadOrderMode();
 });
 </script>
 
 <footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
-  ※如遇錯誤頁面刷新即可，需更改便當數量或其他東西請找相關股長處理，bug反饋/忘記帳號密碼，聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
+  ※如遇錯誤頁面刷新即可，bug反饋/忘記帳號密碼，聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
 </footer>
 
 </body>
