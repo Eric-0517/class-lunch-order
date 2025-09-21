@@ -138,7 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /** 更新送單狀態顯示 */
   function updateStatus(open) {
-    orderStatus.textContent = open ? "✅ 目前狀態：開放送單" : "❌ 目前狀態：未開放送單";
+    orderStatus.textContent = open ? "目前狀態：✅ 開放送單" : "目前狀態：❌ 未開放送單";
     orderStatus.style.color = open ? "lightgreen" : "red";
   }
 
