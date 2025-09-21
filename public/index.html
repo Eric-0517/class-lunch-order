@@ -6,6 +6,7 @@
 <title>國二一便當訂購系統</title>
 <link rel="stylesheet" href="style.css">
 <style>
+/* ====== 你的原有樣式 ====== */
 header {
   display: flex;
   justify-content: space-between;
@@ -29,33 +30,18 @@ header {
   cursor: pointer;
   font-size: 14px;
 }
-.btn-history {
-  background-color: #2196f3;
-  color: white;
-}
-.btn-notice {
-  background-color: #ff9800;
-  color: white;
-}
-.btn-login {
-  background-color: #4caf50;
-  color: white;
-}
-.btn:hover {
-  opacity: 0.9;
-}
-main {
-  padding: 20px;
-}
+.btn-history { background-color: #2196f3; color: white; }
+.btn-notice { background-color: #ff9800; color: white; }
+.btn-login { background-color: #4caf50; color: white; }
+.btn:hover { opacity: 0.9; }
+main { padding: 20px; }
 .day-card {
   border: 1px solid #ddd;
   border-radius: 6px;
   padding: 10px;
   margin: 10px 0;
 }
-.day-card h3 {
-  margin: 0 0 10px 0;
-}
+.day-card h3 { margin: 0 0 10px 0; }
 .summary {
   margin: 20px 0;
   font-size: 16px;
@@ -79,14 +65,75 @@ main {
   margin-left: 5px;
   font-weight: bold;
 }
-.submit-btn:hover:not(.locked) {
-  opacity: 0.9;
-}
+.submit-btn:hover:not(.locked) { opacity: 0.9; }
 footer {
   text-align: center;
   font-size: 0.8em;
   color: #888;
   margin: 20px 0;
+}
+
+/* ====== 新增 modal 樣式 ====== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 999;
+  justify-content: center;
+  align-items: center;
+}
+.notification {
+  background: #fff;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  padding: 20px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+  position: relative;
+  animation: fadeIn .3s ease;
+}
+.notification__title {
+  display: flex;
+  align-items: center;
+  font-weight: bold;
+  font-size: 18px;
+  margin-bottom: 15px;
+}
+.notification__title-icon {
+  width: 20px;
+  height: 20px;
+  background: #ff9800;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+.notification__content-txt {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.rountbutton { text-align: center; margin-top: 20px; }
+.rountbutton__widget {
+  background: #2196f3;
+  color: #fff;
+  border: none;
+  border-radius: 25px;
+  padding: 10px 20px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.rountbutton__widget:hover { background: #1976d2; }
+.notification__close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 18px;
+  text-decoration: none;
+  color: #888;
+  cursor: pointer;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-20px);}
+  to   { opacity: 1; transform: translateY(0);}
 }
 </style>
 </head>
@@ -116,8 +163,33 @@ footer {
   <button id="submit-order" class="submit-btn">送出訂單</button>
 </main>
 
+<!-- 🔔 公告 Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="notification">
+    <div class="notification__title">
+      <div class="notification__title-icon"></div>
+      <div class="notification__title-txt">即時公告</div>
+    </div>
+    <div class="notification__content">
+      <div class="notification__content-txt">
+        <p>同學，您好：</p>
+        <p>因近期發現系統訂單資料因不明原因而遭到清除，於今日(21日)暫時關閉本系統進行維修及測試，測試時間將為期一週。</p>
+        <p>測試期間資料將不計入請同學無須擔心！</p>
+        <p>目前訂購暫且更改為 Google 表單訂購：<br>
+        <a href="https://forms.gle/bfKNo6z2663YgaE78" target="_blank">前往訂購表單</a></p>
+        <p>如造成困擾還請見諒！</p>
+        <p>更多詳細說明請參考：<a href="https://lunchorder.dpdns.org/notice/Post/250921.html" target="_blank">0921暫停公告</a></p>
+      </div>
+    </div>
+    <div class="rountbutton">
+      <button class="rountbutton__widget" onclick="closeModal()">我知道了！</button>
+    </div>
+    <a class="notification__close" onclick="closeModal()">✕</a>
+  </div>
+</div>
+
 <script>
-// 產生座號選單
+// === 原本座號、便當選項、訂單處理 ===
 const seatSelect = document.getElementById('seat-select');
 for(let i=1;i<=32;i++){
   const opt = document.createElement('option');
@@ -126,12 +198,10 @@ for(let i=1;i<=32;i++){
   seatSelect.appendChild(opt);
 }
 
-// 星期與便當種類
 const daysContainer = document.getElementById('days-container');
 const dayNames = ['禮拜一','禮拜二','禮拜三','禮拜四','禮拜五'];
 const types = ['正園A','正園B','御饌A','御饌B','悦馨','今日不訂購'];
 
-// 建立每日選項卡片
 dayNames.forEach(day=>{
   const card = document.createElement('div');
   card.className='day-card';
@@ -146,7 +216,6 @@ dayNames.forEach(day=>{
   daysContainer.appendChild(card);
 });
 
-// 更新總金額
 function updateTotal(){
   const items=[];
   document.querySelectorAll('.day-card').forEach(card=>{
@@ -158,7 +227,6 @@ function updateTotal(){
 }
 document.addEventListener('change',updateTotal);
 
-// 控制送單按鈕狀態
 const submitBtn = document.getElementById('submit-order');
 function updateSubmitButton() {
   const saved = localStorage.getItem("orderMode");
@@ -177,17 +245,14 @@ function updateSubmitButton() {
       submitBtn.disabled = false;
     }
   } else {
-    // 預設開放送單
     submitBtn.classList.remove('locked');
     submitBtn.disabled = false;
   }
 }
 updateSubmitButton();
 
-// 點擊送單
 submitBtn.addEventListener('click', async ()=>{
-  if(submitBtn.disabled) return; // 上鎖時不執行
-
+  if(submitBtn.disabled) return;
   const seat = seatSelect.value;
   if(!seat) return alert("請選擇座號");
 
@@ -202,8 +267,6 @@ submitBtn.addEventListener('click', async ()=>{
   });
 
   const totalPrice = items.reduce((sum,i)=>sum + (i.typeName==='今日不訂購'?0:70),0);
-
-  // ✅ 第一步：確認是否正確
   if(!confirm(`確認便當是否訂購無誤？\n共計金額：${totalPrice} 元`)) return;
 
   try{
@@ -216,14 +279,21 @@ submitBtn.addEventListener('click', async ()=>{
     if(data.success){
       document.querySelectorAll('input[type=radio]').forEach(r=>r.checked=false);
       document.getElementById('total-price').textContent=0;
-
-      // ✅ 第二步：成功提示
       alert("訂購成功！\n請至歷史訂單頁面查看！");
     }
   }catch(err){
     console.error("訂單送出失敗：" + err.message);
   }
 });
+
+// === Modal 開關 ===
+function openModal() {
+  document.getElementById('modal').style.display = 'flex';
+}
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+}
+window.onload = openModal; // 🚀 載入頁面時自動跳出
 </script>
 
 <footer>
