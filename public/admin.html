@@ -12,19 +12,15 @@ header { display:flex; justify-content:space-between; align-items:center; paddin
 .header-buttons { display:flex; gap:10px; }
 .admin-link, .logout-btn { color:#cfe9ff; text-decoration:none; font-size:1em; font-weight:bold; background:#2196f3; padding:6px 12px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; height:36px; }
 .logout-btn:hover, .admin-link:hover { opacity:0.9; }
-
 .delete-btn { background:red; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
 .delete-btn:hover { background:#a80000; }
 table { border-collapse: collapse; width:100%; margin-top:15px; }
 th, td { border:1px solid #37b7ff; padding:5px; text-align:center; }
 #dailyStatsSection { margin-top:30px; }
 footer { margin-top:30px; font-size:0.8em; color:#888; }
-
 .input-field { width: 250px; padding: 8px 12px; margin: 5px 0; border-radius: 6px; border: 1px solid #37b7ff; background: #111824; color: #cfe9ff; }
-
 .login-btn { padding: 8px 20px; margin-top: 10px; border: none; border-radius: 6px; background-color: #4caf50; color: white; font-size: 14px; cursor: pointer; }
 .login-btn:hover { opacity: 0.9; }
-
 #orderModeSection { margin-top:30px; border:1px solid #37b7ff; padding:15px; border-radius:6px; }
 #orderModeSection label { margin-right:10px; }
 #orderModeSection input[type="date"], #orderModeSection input[type="time"] { background:#111824; color:#cfe9ff; border:1px solid #37b7ff; border-radius:6px; padding:4px 8px; }
@@ -106,81 +102,80 @@ document.addEventListener("DOMContentLoaded", () => {
   const orderStatus = document.getElementById("orderStatus");
   let autoCloseTimer = null;
 
-  /** ================= 登入 ================= **/
+  /** 登入 */
   loginBtn.addEventListener("click", async () => {
-    const user = document.getElementById("adminUser").value.trim();
-    const pass = document.getElementById("adminPass").value.trim();
-    if (!user || !pass) {
+    const username = document.getElementById("adminUser").value.trim();
+    const password = document.getElementById("adminPass").value.trim();
+    if(!username || !password){
       loginMsg.textContent = "請輸入帳號與密碼";
       return;
     }
-    try {
+    try{
       const res = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ username: user, password: pass })
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ username, password })
       });
       const data = await res.json();
-      if (data.success) {
-        loginSection.style.display = "none";
-        adminPanel.style.display = "block";
-        logoutBtn.style.display = "inline-block";
-        loginMsg.textContent = "";
+      if(data.success){
+        loginSection.style.display="none";
+        adminPanel.style.display="block";
+        logoutBtn.style.display="inline-block";
+        loginMsg.textContent="";
         loadOrderMode();
       } else {
         loginMsg.textContent = "登入失敗：" + (data.message || "帳號或密碼錯誤");
       }
-    } catch (err) {
-      console.error("登入失敗", err);
-      loginMsg.textContent = "連線失敗，請稍後再試";
+    } catch(err){
+      loginMsg.textContent="連線失敗，請稍後再試";
     }
   });
 
-  logoutBtn.addEventListener("click", async () => {
-    await fetch("/api/admin/logout", { method: "POST" });
-    adminPanel.style.display = "none";
-    loginSection.style.display = "block";
-    logoutBtn.style.display = "none";
+  logoutBtn.addEventListener("click", async ()=>{
+    await fetch("/api/admin/logout", { method:"POST" });
+    adminPanel.style.display="none";
+    loginSection.style.display="block";
+    logoutBtn.style.display="none";
   });
 
-  /** ================= 送單狀態 ================= **/
-  function updateStatus(open) {
+  /** 送單狀態 */
+  function updateStatus(open){
     orderStatus.textContent = open ? "✅ 目前狀態：開放送單" : "❌ 目前狀態：未開放送單";
     orderStatus.style.color = open ? "lightgreen" : "red";
   }
 
-  async function loadOrderMode() {
-    try {
+  async function loadOrderMode(){
+    try{
       const res = await fetch("/api/orderMode");
       const data = await res.json();
-      if (data.success && data.data) {
+      if(data.success && data.data){
         const mode = data.data;
         orderOpenCheckbox.checked = mode.open ?? false;
         scheduleEnabled.checked = mode.scheduleEnabled ?? false;
         scheduleDate.value = mode.scheduleDate ?? "";
         scheduleTime.value = mode.scheduleTime ?? "";
         updateStatus(mode.open);
-        if (mode.scheduleEnabled && mode.scheduleDate && mode.scheduleTime) {
+        if(mode.scheduleEnabled && mode.scheduleDate && mode.scheduleTime){
           setupAutoClose(mode.scheduleDate, mode.scheduleTime);
         }
       }
-    } catch (err) {
-      console.error("載入失敗", err);
+    } catch(err){
+      console.error(err);
     }
   }
 
-  saveOrderModeBtn.addEventListener("click", async () => {
+  saveOrderModeBtn.addEventListener("click", async ()=>{
     const mode = {
       open: orderOpenCheckbox.checked,
       scheduleEnabled: scheduleEnabled.checked,
       scheduleDate: scheduleDate.value,
       scheduleTime: scheduleTime.value
     };
-    try {
+    try{
       const res = await fetch("/api/orderMode", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify(mode)
+        body: JSON.stringify(mode)
       });
       const data = await res.json();
       if(data.success){
@@ -193,29 +188,28 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         orderModeMsg.textContent = "❌ 儲存失敗：" + (data.message || "");
       }
-    } catch(err) {
+    } catch(err){
       orderModeMsg.textContent = "❌ 連線失敗";
     }
   });
 
-  function setupAutoClose(dateStr, timeStr){
+  function setupAutoClose(dateStr,timeStr){
     if(autoCloseTimer) clearTimeout(autoCloseTimer);
-    const [hours, minutes] = timeStr.split(":").map(Number);
+    const [h,m] = timeStr.split(":").map(Number);
     const target = new Date(dateStr);
-    target.setHours(hours, minutes, 0, 0);
+    target.setHours(h,m,0,0);
     const delay = target - new Date();
-    if(delay <= 0){
-      orderOpenCheckbox.checked = false;
+    if(delay <=0){
+      orderOpenCheckbox.checked=false;
       updateStatus(false);
-      alert("送單時間已到，自動關閉送單！");
-      fetch("/api/orderMode/close", {method:"POST"});
+      fetch("/api/orderMode/close",{method:"POST"});
       return;
     }
     autoCloseTimer = setTimeout(()=>{
-      orderOpenCheckbox.checked = false;
+      orderOpenCheckbox.checked=false;
       updateStatus(false);
+      fetch("/api/orderMode/close",{method:"POST"});
       alert("送單時間已到，自動關閉送單！");
-      fetch("/api/orderMode/close", {method:"POST"});
     }, delay);
   }
 });
