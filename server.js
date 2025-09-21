@@ -6,10 +6,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // -------------------- MongoDB 設定 --------------------
-mongoose.connect('mongodb+srv://admin:aa980517@cluster0.1yktzwj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(()=>console.log("✅ MongoDB connected"))
+const mongoose = require("mongoose");
+
+const MONGO_URI = "mongodb+srv://admin:aa980517@cluster0.1yktzwj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+
+mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(()=>console.log("✅ MongoDB connected"))
   .catch(err=>console.error("MongoDB connection error:", err));
 
 // 訂單 Schema
