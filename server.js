@@ -1,216 +1,67 @@
 const express = require("express");
-const path = require("path");
-const mongoose = require("mongoose");
-const session = require("express-session");
+const bodyParser = require("body-parser");
+const cors = require("cors");
+
 const app = express();
+const PORT = 3000;
 
-const PORT = process.env.PORT || 3000;
+app.use(cors());
+app.use(bodyParser.json());
 
-// -------------------- MongoDB 設定 --------------------
-const MONGO_URI = "mongodb+srv://admin:aa980517@cluster0.1yktzwj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+let orders = []; // 存放所有訂單
 
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(()=>console.log("✅ MongoDB connected"))
-  .catch(err=>console.error("MongoDB connection error:", err));
+// 新增訂單
+app.post("/api/order", (req, res) => {
+  const { weekDay, seat, item, quantity, total } = req.body;
+  const timestamp = new Date().toISOString();
 
-// -------------------- Schema --------------------
-const orderSchema = new mongoose.Schema({
-  seat: String,
-  items: Array,  // [{ typeName, qty, price }]
-  createdAt: { type: Date, default: Date.now }
-});
-const Order = mongoose.model("Order", orderSchema);
+  const order = { timestamp, weekDay, seat, item, quantity, total };
+  orders.push(order);
 
-const orderModeSchema = new mongoose.Schema({
-  open: { type: Boolean, default: false },
-  scheduleEnabled: { type: Boolean, default: false },
-  scheduleDate: String,
-  scheduleTime: String
-});
-const OrderMode = mongoose.model("OrderMode", orderModeSchema);
-
-// -------------------- Middleware --------------------
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(session({
-  secret: "secretKey",
-  resave: false,
-  saveUninitialized: true,
-}));
-app.use(express.static(path.join(__dirname, "public")));
-
-// -------------------- 管理員帳密 --------------------
-const ADMIN = { username: "admin", password: "12345678" };
-
-// -------------------- 訂單 API --------------------
-app.post("/api/order", async (req,res)=>{
-  const { seat, items } = req.body;
-  if(!seat || !items) return res.status(400).json({ success:false, message:"座號或訂單資料缺失" });
-  const order = new Order({ seat, items });
-  await order.save();
-  res.json({ success:true, message:"訂單已送出" });
+  res.json({ success: true, order });
 });
 
-app.get("/api/orders", async (req,res)=>{
-  const orders = await Order.find().sort({ createdAt: -1 });
-  res.json({ success:true, data: orders });
+// 取得所有訂單
+app.get("/api/orders", (req, res) => {
+  res.json(orders);
 });
 
-// 刪除指定座號訂單
-app.delete("/api/orders", async (req,res)=>{
-  const { seat } = req.body;
-  if(!seat) return res.status(400).json({ success:false, message:"缺少座號" });
-  await Order.deleteMany({ seat });
-  res.json({ success:true, message:`已刪除座號 ${seat} 的訂單` });
-});
+// 取得每日訂單統計
+app.get("/api/daily-summary", (req, res) => {
+  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
-// 刪除全部訂單
-app.delete("/api/orders/all", async (req,res)=>{
-  await Order.deleteMany();
-  res.json({ success:true, message:"已刪除全部訂單" });
-});
-
-// -------------------- 統計 API --------------------
-app.get("/api/orders/stats", async (req, res) => {
-  try {
-    const orders = await Order.find().sort({ createdAt: -1 });
-
-    // 所有訂單統計
-    const allOrders = orders.map(o => {
-      let total = 0;
-      const itemsDetail = o.items.map(i => {
-        const qty = i.qty || 1;
-        const price = i.price || 0;
-        const subtotal = qty * price;
-        total += subtotal;
-        return {
-          name: i.typeName,
-          qty,
-          price,
-          subtotal
-        };
-      });
-
-      return {
-        id: o._id,
-        createdAt: o.createdAt,
-        seat: o.seat,
-        items: itemsDetail,
-        total
-      };
-    });
-
-    // 每週一到週五分組
-    const weekOrders = {
-      Monday:   { "正圓A": 0, "正圓B": 0, "御饌A": 0, "御饌B": 0, "悅馨": 0, "今日不訂購": 0, total: 0 },
-      Tuesday:  { "正圓A": 0, "正圓B": 0, "御饌A": 0, "御饌B": 0, "悅馨": 0, "今日不訂購": 0, total: 0 },
-      Wednesday:{ "正圓A": 0, "正圓B": 0, "御饌A": 0, "御饌B": 0, "悅馨": 0, "今日不訂購": 0, total: 0 },
-      Thursday: { "正圓A": 0, "正圓B": 0, "御饌A": 0, "御饌B": 0, "悅馨": 0, "今日不訂購": 0, total: 0 },
-      Friday:   { "正圓A": 0, "正圓B": 0, "御饌A": 0, "御饌B": 0, "悅馨": 0, "今日不訂購": 0, total: 0 }
+  let summary = {};
+  days.forEach((day) => {
+    summary[day] = {
+      正圓A: 0,
+      正圓B: 0,
+      御饌A: 0,
+      御饌B: 0,
+      悅馨: 0,
+      今日不訂購: 0,
+      總金額: 0,
     };
+  });
 
-    orders.forEach(o => {
-      const day = new Date(o.createdAt).getDay(); // 0=Sunday, 1=Monday...
-      const dayMap = { 1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday" };
-      if (!dayMap[day]) return; // 忽略六日
-
-      const group = weekOrders[dayMap[day]];
-      o.items.forEach(i => {
-        const qty = i.qty || 1;
-        const price = i.price || 0;
-        const subtotal = qty * price;
-
-        if (group[i.typeName] !== undefined) {
-          group[i.typeName] += qty;
-        }
-        group.total += subtotal;
-      });
-    });
-
-    res.json({ success: true, allOrders, weekOrders });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// -------------------- 管理員登入 --------------------
-app.post("/api/admin/login", (req,res)=>{
-  const username = req.body?.username || "";
-  const password = req.body?.password || "";
-
-  if(username===ADMIN.username && password===ADMIN.password){
-    req.session.admin = true;
-    return res.json({ success:true });
-  }
-  return res.json({ success:false, message:"帳號或密碼錯誤" });
-});
-
-// -------------------- 送單模式 --------------------
-let autoCloseTimer = null;
-
-app.get("/api/orderMode", async (req,res)=>{
-  try {
-    let mode = await OrderMode.findOne();
-    if(!mode){
-      mode = new OrderMode();
-      await mode.save();
+  orders.forEach((order) => {
+    if (summary[order.weekDay]) {
+      if (summary[order.weekDay][order.item] !== undefined) {
+        summary[order.weekDay][order.item] += order.quantity;
+      }
+      summary[order.weekDay].總金額 += order.total;
     }
-    res.json({ success:true, data: mode });
-  } catch(err){
-    res.status(500).json({ success:false, message: err.message });
-  }
+  });
+
+  res.json(summary);
 });
 
-app.post("/api/orderMode", async (req,res)=>{
-  try {
-    const { open, scheduleEnabled, scheduleDate, scheduleTime } = req.body;
-    let mode = await OrderMode.findOne();
-    if(!mode) mode = new OrderMode();
-    mode.open = !!open;
-    mode.scheduleEnabled = !!scheduleEnabled;
-    mode.scheduleDate = scheduleDate || "";
-    mode.scheduleTime = scheduleTime || "";
-    await mode.save();
-
-    res.json({ success:true, message:"送單設定已儲存" });
-
-    // 設定自動關閉
-    if(scheduleEnabled && scheduleDate && scheduleTime){
-      setupAutoClose(scheduleDate, scheduleTime);
-    }
-  } catch(err){
-    res.status(500).json({ success:false, message: err.message });
-  }
+// 刪除訂單
+app.delete("/api/order/:timestamp", (req, res) => {
+  const { timestamp } = req.params;
+  orders = orders.filter((order) => order.timestamp !== timestamp);
+  res.json({ success: true });
 });
 
-app.post("/api/orderMode/close", async (req,res)=>{
-  try{
-    let mode = await OrderMode.findOne();
-    if(!mode) mode = new OrderMode();
-    mode.open = false;
-    await mode.save();
-    res.json({ success:true });
-  } catch(err){
-    res.status(500).json({ success:false, message: err.message });
-  }
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });
-
-// -------------------- 自動關閉函式 --------------------
-function setupAutoClose(dateStr, timeStr){
-  if(autoCloseTimer) clearTimeout(autoCloseTimer);
-  const [hours, minutes] = timeStr.split(":").map(Number);
-  const target = new Date(dateStr);
-  target.setHours(hours, minutes, 0, 0);
-  const delay = target - new Date();
-  if(delay <= 0){
-    OrderMode.findOneAndUpdate({}, { open:false });
-    return;
-  }
-  autoCloseTimer = setTimeout(async ()=>{
-    await OrderMode.findOneAndUpdate({}, { open:false });
-    console.log("⏰ 自動關閉送單");
-  }, delay);
-}
-
-// -------------------- 啟動伺服器 --------------------
-app.listen(PORT, ()=>console.log(`✅ Server running on port ${PORT}`));
