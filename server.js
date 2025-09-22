@@ -16,7 +16,7 @@ mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
 // -------------------- Schema --------------------
 const orderSchema = new mongoose.Schema({
   seat: String,
-  items: Array, // [{ typeName: "正圓A", qty: 1 }]
+  items: Array,  // [{ typeName, qty, price }]
   createdAt: { type: Date, default: Date.now }
 });
 const Order = mongoose.model("Order", orderSchema);
@@ -42,16 +42,6 @@ app.use(express.static(path.join(__dirname, "public")));
 // -------------------- 管理員帳密 --------------------
 const ADMIN = { username: "admin", password: "12345678" };
 
-// -------------------- 品項單價 --------------------
-const ITEM_PRICES = {
-  "正圓A": 70,
-  "正圓B": 70,
-  "御饌A": 70,
-  "御饌B": 70,
-  "悅馨": 70,
-  "今日不訂購": 0
-};
-
 // -------------------- 訂單 API --------------------
 app.post("/api/order", async (req,res)=>{
   const { seat, items } = req.body;
@@ -62,10 +52,11 @@ app.post("/api/order", async (req,res)=>{
 });
 
 app.get("/api/orders", async (req,res)=>{
-  const orders = await Order.find();
+  const orders = await Order.find().sort({ createdAt: -1 });
   res.json({ success:true, data: orders });
 });
 
+// 刪除指定座號訂單
 app.delete("/api/orders", async (req,res)=>{
   const { seat } = req.body;
   if(!seat) return res.status(400).json({ success:false, message:"缺少座號" });
@@ -73,12 +64,13 @@ app.delete("/api/orders", async (req,res)=>{
   res.json({ success:true, message:`已刪除座號 ${seat} 的訂單` });
 });
 
+// 刪除全部訂單
 app.delete("/api/orders/all", async (req,res)=>{
   await Order.deleteMany();
   res.json({ success:true, message:"已刪除全部訂單" });
 });
 
-// -------------------- 訂單統計 --------------------
+// -------------------- 統計 API --------------------
 app.get("/api/orders/stats", async (req, res) => {
   try {
     const orders = await Order.find().sort({ createdAt: -1 });
@@ -87,10 +79,18 @@ app.get("/api/orders/stats", async (req, res) => {
     const allOrders = orders.map(o => {
       let total = 0;
       const itemsDetail = o.items.map(i => {
-        const price = ITEM_PRICES[i.typeName] || 0;
-        total += price * i.qty;
-        return { ...i, price };
+        const qty = i.qty || 1;
+        const price = i.price || 0;
+        const subtotal = qty * price;
+        total += subtotal;
+        return {
+          name: i.typeName,
+          qty,
+          price,
+          subtotal
+        };
       });
+
       return {
         id: o._id,
         createdAt: o.createdAt,
@@ -100,27 +100,36 @@ app.get("/api/orders/stats", async (req, res) => {
       };
     });
 
-    // 每日訂單統計 (星期一 ~ 星期五)
-    const dailyOrdersMap = {};
+    // 每週一到週五分組
+    const weekOrders = {
+      Monday:   { "正圓A": 0, "正圓B": 0, "御饌A": 0, "御饌B": 0, "悅馨": 0, "今日不訂購": 0, total: 0 },
+      Tuesday:  { "正圓A": 0, "正圓B": 0, "御饌A": 0, "御饌B": 0, "悅馨": 0, "今日不訂購": 0, total: 0 },
+      Wednesday:{ "正圓A": 0, "正圓B": 0, "御饌A": 0, "御饌B": 0, "悅馨": 0, "今日不訂購": 0, total: 0 },
+      Thursday: { "正圓A": 0, "正圓B": 0, "御饌A": 0, "御饌B": 0, "悅馨": 0, "今日不訂購": 0, total: 0 },
+      Friday:   { "正圓A": 0, "正圓B": 0, "御饌A": 0, "御饌B": 0, "悅馨": 0, "今日不訂購": 0, total: 0 }
+    };
+
     orders.forEach(o => {
-      const dateStr = o.createdAt.toISOString().split("T")[0];
-      if(!dailyOrdersMap[dateStr]) dailyOrdersMap[dateStr] = {
-        date: dateStr,
-        "正圓A":0, "正圓B":0, "御饌A":0, "御饌B":0, "悅馨":0, "今日不訂購":0,
-        total: 0
-      };
-      o.items.forEach(i=>{
-        dailyOrdersMap[dateStr][i.typeName] = (dailyOrdersMap[dateStr][i.typeName] || 0) + i.qty;
-        dailyOrdersMap[dateStr].total += (ITEM_PRICES[i.typeName]||0) * i.qty;
+      const day = new Date(o.createdAt).getDay(); // 0=Sunday, 1=Monday...
+      const dayMap = { 1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday" };
+      if (!dayMap[day]) return; // 忽略六日
+
+      const group = weekOrders[dayMap[day]];
+      o.items.forEach(i => {
+        const qty = i.qty || 1;
+        const price = i.price || 0;
+        const subtotal = qty * price;
+
+        if (group[i.typeName] !== undefined) {
+          group[i.typeName] += qty;
+        }
+        group.total += subtotal;
       });
     });
 
-    const dailyOrders = Object.values(dailyOrdersMap);
-
-    res.json({ success:true, allOrders, dailyOrders });
-
-  } catch(err){
-    res.status(500).json({ success:false, message: err.message });
+    res.json({ success: true, allOrders, weekOrders });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -128,6 +137,7 @@ app.get("/api/orders/stats", async (req, res) => {
 app.post("/api/admin/login", (req,res)=>{
   const username = req.body?.username || "";
   const password = req.body?.password || "";
+
   if(username===ADMIN.username && password===ADMIN.password){
     req.session.admin = true;
     return res.json({ success:true });
