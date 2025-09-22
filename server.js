@@ -1,67 +1,91 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const cors = require("cors");
-
+const express = require('express');
+const path = require('path');
 const app = express();
-const PORT = 3000;
 
-app.use(cors());
-app.use(bodyParser.json());
+const PORT = process.env.PORT || 3000;
 
-let orders = []; // 存放所有訂單
+// 解析 JSON 與表單
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// 新增訂單
-app.post("/api/order", (req, res) => {
-  const { weekDay, seat, item, quantity, total } = req.body;
-  const timestamp = new Date().toISOString();
+// 靜態檔案
+app.use(express.static(path.join(__dirname, 'public')));
 
-  const order = { timestamp, weekDay, seat, item, quantity, total };
-  orders.push(order);
+// 訂單暫存（測試用）
+let orders = [];
 
-  res.json({ success: true, order });
-});
+// 管理員帳密
+const ADMIN_USER = "admin";
+const ADMIN_PASS = "12345678";
 
-// 取得所有訂單
-app.get("/api/orders", (req, res) => {
-  res.json(orders);
-});
+// 送單模式（true = 開放, false = 未開放）
+// 前端可用來控制按鈕顏色，但後端不再阻擋送單
+let orderMode = { open: false };
 
-// 取得每日訂單統計
-app.get("/api/daily-summary", (req, res) => {
-  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+// -------------------- 訂單相關 --------------------
 
-  let summary = {};
-  days.forEach((day) => {
-    summary[day] = {
-      正圓A: 0,
-      正圓B: 0,
-      御饌A: 0,
-      御饌B: 0,
-      悅馨: 0,
-      今日不訂購: 0,
-      總金額: 0,
-    };
-  });
-
-  orders.forEach((order) => {
-    if (summary[order.weekDay]) {
-      if (summary[order.weekDay][order.item] !== undefined) {
-        summary[order.weekDay][order.item] += order.quantity;
-      }
-      summary[order.weekDay].總金額 += order.total;
+// POST /api/order - 接收訂單
+app.post('/api/order', (req, res) => {
+  try {
+    const { seat, items } = req.body;
+    if (!seat || !items) {
+      return res.status(400).json({ success: false, message: '座號或訂單資料缺失' });
     }
-  });
 
-  res.json(summary);
+    orders.push({ seat, items, createdAt: new Date() });
+    res.json({ success: true, message: '訂單已送出，請至歷史訂單頁面確認！' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: '伺服器錯誤', error: err.message });
+  }
 });
 
-// 刪除訂單
-app.delete("/api/order/:timestamp", (req, res) => {
-  const { timestamp } = req.params;
-  orders = orders.filter((order) => order.timestamp !== timestamp);
-  res.json({ success: true });
+// GET /api/orders - 查看全部訂單
+app.get('/api/orders', (req, res) => {
+  res.json({ success: true, data: orders });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+// DELETE /api/orders - 刪除指定座號訂單
+app.delete('/api/orders', (req, res) => {
+  const { seat } = req.body;
+  if (!seat) return res.status(400).json({ success: false, message: "缺少座號" });
+  orders = orders.filter(o => o.seat !== seat);
+  res.json({ success: true, message: `已刪除座號 ${seat} 的訂單` });
 });
+
+// DELETE /api/orders/all - 刪除全部訂單
+app.delete('/api/orders/all', (req, res) => {
+  orders = [];
+  res.json({ success: true, message: "已刪除全部訂單" });
+});
+
+// -------------------- 管理員相關 --------------------
+
+// POST /api/admin/login - 管理員登入
+app.post('/api/admin/login', (req, res) => {
+  const { user, pass } = req.body;
+  if (user === ADMIN_USER && pass === ADMIN_PASS) {
+    res.json({ success: true, message: "登入成功" });
+  } else {
+    res.status(401).json({ success: false, message: "帳號或密碼錯誤" });
+  }
+});
+
+// -------------------- 送單開放狀態 --------------------
+
+// GET /api/orderMode - 取得送單狀態（前端用於按鈕顏色）
+app.get('/api/orderMode', (req, res) => {
+  res.json({ success: true, data: orderMode });
+});
+
+// POST /api/orderMode - 修改送單狀態 (管理端)
+app.post('/api/orderMode', (req, res) => {
+  const { open } = req.body;
+  if (typeof open !== "boolean") {
+    return res.status(400).json({ success: false, message: "請傳 boolean" });
+  }
+  orderMode.open = open;
+  res.json({ success: true, message: `送單狀態已更新為 ${open ? '開放' : '未開放'}` });
+});
+
+// -------------------- 啟動伺服器 --------------------
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
