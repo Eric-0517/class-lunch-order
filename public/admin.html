@@ -47,7 +47,7 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
 /* 送單模式區塊 */
 #orderModeSection { margin-top:30px; border:1px solid #37b7ff; padding:15px; border-radius:6px; }
 #orderModeSection label { margin-right:10px; }
-#orderModeSection input[type="date"] { background:#111824; color:#cfe9ff; border:1px solid #37b7ff; border-radius:6px; padding:4px 8px; }
+#orderModeSection input[type="date"], #orderModeSection input[type="datetime-local"] { background:#111824; color:#cfe9ff; border:1px solid #37b7ff; border-radius:6px; padding:4px 8px; }
 #orderModeSection button { margin-top:10px; padding:6px 12px; border:none; border-radius:6px; background:#2196f3; color:white; cursor:pointer; }
 #orderModeSection button:hover { opacity:0.9; }
 </style>
@@ -87,19 +87,21 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
     <!-- ===== 送單模式設定 ===== -->
     <div id="orderModeSection">
       <h2>功能設定</h2>
+      
+      <!-- 手動開關 -->
       <label>
         <input type="checkbox" id="orderOpen"> 開放送單
       </label><br>
 
-      <h3 style="margin-top:15px;">定時設定</h3>
+      <!-- 自動關閉設定 -->
+      <h3 style="margin-top:15px;">自動關閉送單</h3>
       <label>
-        <input type="checkbox" id="scheduleEnabled"> 開啟定時設定
+        關閉日期與時間：
+        <input type="datetime-local" id="closeDateTime">
       </label><br>
-      <label>
-        執行日期：
-        <input type="date" id="scheduleDate">
-      </label><br>
-      <p style="margin:5px 0;">固定執行時間：晚上 22:00</p>
+
+      <!-- 目前狀態顯示 -->
+      <p id="currentStatus" style="margin-top:5px; color:#ff9800;">目前送單狀態：未知</p>
 
       <button id="saveOrderModeBtn">儲存設定</button>
       <div id="orderModeMsg" style="color:#ff9800; margin-top:10px;"></div>
@@ -122,8 +124,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let allOrders = [];
 
   const orderOpenCheckbox = document.getElementById("orderOpen");
+  const closeDateTime = document.getElementById("closeDateTime");
   const saveOrderModeBtn = document.getElementById("saveOrderModeBtn");
   const orderModeMsg = document.getElementById("orderModeMsg");
+  const currentStatus = document.getElementById("currentStatus");
   const statsResult = document.getElementById("statsResult");
   const dailyStatsResult = document.getElementById("dailyStatsResult");
   const deleteAllBtn = document.getElementById("deleteAllBtn");
@@ -189,7 +193,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadOrderMode();
   }
 
-  // ===== 其他功能: 訂單載入/渲染/刪除 =====
+  // ===== 訂單載入/渲染/刪除 =====
   async function loadOrders(){
     try {
       const res = await fetch("/api/orders");
@@ -305,32 +309,51 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ===== 送單模式設定 =====
-  const scheduleEnabled = document.getElementById("scheduleEnabled");
-  const scheduleDate = document.getElementById("scheduleDate");
-
   function loadOrderMode() {
     const saved = localStorage.getItem("orderMode");
     if(saved){
       try {
         const mode = JSON.parse(saved);
         orderOpenCheckbox.checked = mode.open ?? false;
-        scheduleEnabled.checked = mode.scheduleEnabled ?? false;
-        scheduleDate.value = mode.scheduleDate ?? "";
+        closeDateTime.value = mode.closeDateTime ?? "";
       } catch(e){}
     }
+    updateOrderStatusDisplay();
+  }
+
+  function updateOrderStatusDisplay() {
+    const now = new Date();
+    const mode = JSON.parse(localStorage.getItem("orderMode") || "{}");
+    let statusText = "❌未開放送單";
+
+    if(mode.open){
+      if(mode.closeDateTime){
+        const closeTime = new Date(mode.closeDateTime);
+        if(now > closeTime){
+          orderOpenCheckbox.checked = false;
+          mode.open = false;
+          localStorage.setItem("orderMode", JSON.stringify(mode));
+          statusText = "❌未開放送單";
+        } else statusText = "✅開放送單";
+      } else statusText = "✅開放送單";
+    }
+
+    currentStatus.textContent = "目前送單狀態：" + statusText;
   }
 
   saveOrderModeBtn.addEventListener("click", ()=>{
     const mode = {
       open: orderOpenCheckbox.checked,
-      scheduleEnabled: scheduleEnabled.checked,
-      scheduleDate: scheduleDate.value
+      closeDateTime: closeDateTime.value
     };
     localStorage.setItem("orderMode", JSON.stringify(mode));
-    orderModeMsg.textContent = "設定已儲存";
+    orderModeMsg.textContent = "💾設定已儲存";
+    updateOrderStatusDisplay();
     setTimeout(()=>orderModeMsg.textContent="",2000);
   });
 
+  // 初始化
+  loadOrderMode();
 });
 </script>
 
