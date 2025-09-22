@@ -56,6 +56,7 @@ app.get("/api/orders", async (req,res)=>{
   res.json({ success:true, data: orders });
 });
 
+// 刪除指定座號訂單
 app.delete("/api/orders", async (req,res)=>{
   const { seat } = req.body;
   if(!seat) return res.status(400).json({ success:false, message:"缺少座號" });
@@ -63,16 +64,43 @@ app.delete("/api/orders", async (req,res)=>{
   res.json({ success:true, message:`已刪除座號 ${seat} 的訂單` });
 });
 
+// 刪除全部訂單
 app.delete("/api/orders/all", async (req,res)=>{
   await Order.deleteMany();
   res.json({ success:true, message:"已刪除全部訂單" });
+});
+
+// 新增統計 API
+app.get("/api/orders/stats", async (req, res) => {
+  try {
+    const orders = await Order.find();
+
+    const allOrders = {};   // 按座號統計
+    const dailyOrders = {}; // 按日期統計
+
+    orders.forEach(o => {
+      // 按座號統計
+      if (!allOrders[o.seat]) allOrders[o.seat] = {};
+      o.items.forEach(it => {
+        allOrders[o.seat][it.typeName] = (allOrders[o.seat][it.typeName] || 0) + 1;
+      });
+
+      // 按日期統計
+      const date = o.createdAt.toISOString().split("T")[0];
+      if (!dailyOrders[date]) dailyOrders[date] = 0;
+      dailyOrders[date] += 1;
+    });
+
+    res.json({ success: true, allOrders, dailyOrders });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 // -------------------- 管理員登入 --------------------
 app.post("/api/admin/login", (req,res)=>{
   const username = req.body?.username || "";
   const password = req.body?.password || "";
-  console.log("登入帳號:", username, "密碼:", password);
 
   if(username===ADMIN.username && password===ADMIN.password){
     req.session.admin = true;
