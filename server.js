@@ -16,7 +16,7 @@ mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
 // -------------------- Schema --------------------
 const orderSchema = new mongoose.Schema({
   seat: String,
-  items: Array,
+  items: Array, // [{ typeName: "正圓A", qty: 1 }]
   createdAt: { type: Date, default: Date.now }
 });
 const Order = mongoose.model("Order", orderSchema);
@@ -42,6 +42,16 @@ app.use(express.static(path.join(__dirname, "public")));
 // -------------------- 管理員帳密 --------------------
 const ADMIN = { username: "admin", password: "12345678" };
 
+// -------------------- 品項單價 --------------------
+const ITEM_PRICES = {
+  "正圓A": 70,
+  "正圓B": 70,
+  "御饌A": 70,
+  "御饌B": 70,
+  "悅馨": 70,
+  "今日不訂購": 0
+};
+
 // -------------------- 訂單 API --------------------
 app.post("/api/order", async (req,res)=>{
   const { seat, items } = req.body;
@@ -56,7 +66,6 @@ app.get("/api/orders", async (req,res)=>{
   res.json({ success:true, data: orders });
 });
 
-// 刪除指定座號訂單
 app.delete("/api/orders", async (req,res)=>{
   const { seat } = req.body;
   if(!seat) return res.status(400).json({ success:false, message:"缺少座號" });
@@ -64,47 +73,49 @@ app.delete("/api/orders", async (req,res)=>{
   res.json({ success:true, message:`已刪除座號 ${seat} 的訂單` });
 });
 
-// 刪除全部訂單
 app.delete("/api/orders/all", async (req,res)=>{
   await Order.deleteMany();
   res.json({ success:true, message:"已刪除全部訂單" });
 });
 
-// 刪除單筆訂單
-app.post("/api/orders/delete/:id", async (req,res)=>{
-  const id = req.params.id;
-  if(!id) return res.status(400).json({ success:false, message:"缺少訂單ID" });
-  try{
-    await Order.findByIdAndDelete(id);
-    res.json({ success:true, message:"訂單已刪除" });
-  }catch(err){
-    res.status(500).json({ success:false, message: err.message });
-  }
-});
-
-// -------------------- 訂單統計 API --------------------
+// -------------------- 訂單統計 --------------------
 app.get("/api/orders/stats", async (req, res) => {
   try {
-    const orders = await Order.find().lean();
+    const orders = await Order.find().sort({ createdAt: -1 });
 
-    // 所有訂單明細
-    const allOrders = orders.map(o => ({
-      id: o._id,
-      seat: o.seat,
-      items: o.items.map(i => i.typeName || i.name || i),
-      createdAt: o.createdAt
-    }));
-
-    // 每日訂單統計
-    const dailyMap = {};
-    orders.forEach(o => {
-      const date = o.createdAt.toISOString().split("T")[0];
-      if (!dailyMap[date]) dailyMap[date] = 0;
-      dailyMap[date] += 1;
+    // 所有訂單統計
+    const allOrders = orders.map(o => {
+      let total = 0;
+      const itemsDetail = o.items.map(i => {
+        const price = ITEM_PRICES[i.typeName] || 0;
+        total += price * i.qty;
+        return { ...i, price };
+      });
+      return {
+        id: o._id,
+        createdAt: o.createdAt,
+        seat: o.seat,
+        items: itemsDetail,
+        total
+      };
     });
-    const dailyOrders = Object.entries(dailyMap)
-      .sort((a,b)=> b[0].localeCompare(a[0]))
-      .map(([date,count]) => ({ date, count }));
+
+    // 每日訂單統計 (星期一 ~ 星期五)
+    const dailyOrdersMap = {};
+    orders.forEach(o => {
+      const dateStr = o.createdAt.toISOString().split("T")[0];
+      if(!dailyOrdersMap[dateStr]) dailyOrdersMap[dateStr] = {
+        date: dateStr,
+        "正圓A":0, "正圓B":0, "御饌A":0, "御饌B":0, "悅馨":0, "今日不訂購":0,
+        total: 0
+      };
+      o.items.forEach(i=>{
+        dailyOrdersMap[dateStr][i.typeName] = (dailyOrdersMap[dateStr][i.typeName] || 0) + i.qty;
+        dailyOrdersMap[dateStr].total += (ITEM_PRICES[i.typeName]||0) * i.qty;
+      });
+    });
+
+    const dailyOrders = Object.values(dailyOrdersMap);
 
     res.json({ success:true, allOrders, dailyOrders });
 
@@ -113,7 +124,7 @@ app.get("/api/orders/stats", async (req, res) => {
   }
 });
 
-// -------------------- 管理員登入/登出 --------------------
+// -------------------- 管理員登入 --------------------
 app.post("/api/admin/login", (req,res)=>{
   const username = req.body?.username || "";
   const password = req.body?.password || "";
@@ -122,11 +133,6 @@ app.post("/api/admin/login", (req,res)=>{
     return res.json({ success:true });
   }
   return res.json({ success:false, message:"帳號或密碼錯誤" });
-});
-
-app.post("/api/admin/logout", (req,res)=>{
-  req.session.destroy();
-  res.json({ success:true });
 });
 
 // -------------------- 送單模式 --------------------
