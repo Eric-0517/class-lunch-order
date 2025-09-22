@@ -97,100 +97,116 @@ document.addEventListener("DOMContentLoaded", () => {
   const orderStatus = document.getElementById("orderStatus");
   const deleteAllBtn = document.getElementById("deleteAllBtn");
   let autoCloseTimer = null;
+  let inactivityTimer = null;
+  const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10 分鐘
+
+  /** 重設無操作計時器 */
+  function resetInactivityTimer() {
+    if(inactivityTimer) clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(() => {
+      logout(true);
+    }, INACTIVITY_LIMIT);
+  }
+
+  ['click','mousemove','keydown','scroll'].forEach(evt => 
+    document.addEventListener(evt, resetInactivityTimer)
+  );
+
+  /** 登出 */
+  async function logout(auto=false){
+    await fetch("/api/admin/logout", { method: "POST" });
+    adminPanel.style.display = "none";
+    loginSection.style.display = "block";
+    logoutBtn.style.display = "none";
+    localStorage.removeItem("loginTime");
+    if(auto){
+      alert("已超過10分鐘未操作，為保護資訊安全，系統已將您登出！");
+    }
+  }
+
+  logoutBtn.addEventListener("click", () => logout(false));
 
   /** 登入 */
   loginBtn.addEventListener("click", async () => {
     const user = document.getElementById("adminUser").value.trim();
     const pass = document.getElementById("adminPass").value.trim();
-    if (!user || !pass) {
-      loginMsg.textContent = "請輸入帳號與密碼";
-      return;
-    }
+    if (!user || !pass) { loginMsg.textContent="請輸入帳號與密碼"; return; }
     try {
       const res = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ username: user, password: pass })
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ username: user, password: pass })
       });
       const data = await res.json();
-      if (data.success) {
-        loginSection.style.display = "none";
-        adminPanel.style.display = "block";
-        logoutBtn.style.display = "inline-block";
-        loginMsg.textContent = "";
+      if(data.success){
+        loginSection.style.display="none";
+        adminPanel.style.display="block";
+        logoutBtn.style.display="inline-block";
+        loginMsg.textContent="";
+        localStorage.setItem("loginTime", Date.now());
+        resetInactivityTimer();
         loadOrderMode();
       } else {
-        loginMsg.textContent = "登入失敗：" + (data.message || "帳號或密碼錯誤");
+        loginMsg.textContent="登入失敗：" + (data.message || "帳號或密碼錯誤");
       }
-    } catch (err) {
-      console.error("登入失敗", err);
-      loginMsg.textContent = "連線失敗，請稍後再試";
-    }
+    } catch(err){ loginMsg.textContent="連線失敗，請稍後再試"; }
   });
 
-  /** 登出 */
-  logoutBtn.addEventListener("click", async () => {
-    await fetch("/api/admin/logout", { method: "POST" });
-    adminPanel.style.display = "none";
-    loginSection.style.display = "block";
-    logoutBtn.style.display = "none";
-  });
+  /** 刷新頁面仍保留登入 */
+  const savedLogin = localStorage.getItem("loginTime");
+  if(savedLogin && (Date.now() - savedLogin < INACTIVITY_LIMIT)){
+    loginSection.style.display="none";
+    adminPanel.style.display="block";
+    logoutBtn.style.display="inline-block";
+    resetInactivityTimer();
+    loadOrderMode();
+  }
 
   /** 更新送單狀態顯示 */
-  function updateStatus(open) {
+  function updateStatus(open){
     orderStatus.textContent = open ? "✅ 目前狀態：開放送單" : "❌ 目前狀態：未開放送單";
     orderStatus.style.color = open ? "lightgreen" : "red";
   }
 
   /** 載入送單模式 */
-  async function loadOrderMode() {
-    try {
+  async function loadOrderMode(){
+    try{
       const res = await fetch("/api/orderMode");
       const data = await res.json();
-      if (data.success && data.data) {
+      if(data.success && data.data){
         const mode = data.data;
         orderOpenCheckbox.checked = mode.open ?? false;
         scheduleEnabled.checked = mode.scheduleEnabled ?? false;
         scheduleDate.value = mode.scheduleDate ?? "";
         scheduleTime.value = mode.scheduleTime ?? "";
         updateStatus(mode.open);
-        if (mode.scheduleEnabled && mode.scheduleDate && mode.scheduleTime) {
+        if(mode.scheduleEnabled && mode.scheduleDate && mode.scheduleTime){
           setupAutoClose(mode.scheduleDate, mode.scheduleTime);
         }
       }
-    } catch (err) {
-      console.error("載入失敗", err);
-    }
+    } catch(err){ console.error("載入送單模式失敗", err); }
   }
 
   /** 儲存送單模式 */
-  saveOrderModeBtn.addEventListener("click", async () => {
+  saveOrderModeBtn.addEventListener("click", async ()=>{
     const mode = {
       open: orderOpenCheckbox.checked,
       scheduleEnabled: scheduleEnabled.checked,
       scheduleDate: scheduleDate.value,
       scheduleTime: scheduleTime.value
     };
-    try {
-      const res = await fetch("/api/orderMode", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify(mode)
-      });
+    try{
+      const res = await fetch("/api/orderMode",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(mode)});
       const data = await res.json();
       if(data.success){
-        orderModeMsg.textContent = "✅ 設定已儲存";
+        orderModeMsg.textContent="✅ 設定已儲存";
         updateStatus(mode.open);
         setTimeout(()=>orderModeMsg.textContent="",2000);
         if(mode.scheduleEnabled && mode.scheduleDate && mode.scheduleTime){
           setupAutoClose(mode.scheduleDate, mode.scheduleTime);
         }
-      } else {
-        orderModeMsg.textContent = "❌ 儲存失敗：" + (data.message || "");
-      }
-    } catch(err) {
-      orderModeMsg.textContent = "❌ 連線失敗";
-    }
+      } else orderModeMsg.textContent="❌ 儲存失敗：" + (data.message || "");
+    } catch(err){ orderModeMsg.textContent="❌ 連線失敗"; }
   });
 
   /** 自動關閉送單 */
@@ -201,17 +217,17 @@ document.addEventListener("DOMContentLoaded", () => {
     target.setHours(hours, minutes, 0, 0);
     const delay = target - new Date();
     if(delay <= 0){
-      orderOpenCheckbox.checked = false;
+      orderOpenCheckbox.checked=false;
       updateStatus(false);
       alert("送單時間已到，自動關閉送單！");
-      fetch("/api/orderMode/close", {method:"POST"});
+      fetch("/api/orderMode/close",{method:"POST"});
       return;
     }
     autoCloseTimer = setTimeout(()=>{
-      orderOpenCheckbox.checked = false;
+      orderOpenCheckbox.checked=false;
       updateStatus(false);
       alert("送單時間已到，自動關閉送單！");
-      fetch("/api/orderMode/close", {method:"POST"});
+      fetch("/api/orderMode/close",{method:"POST"});
     }, delay);
   }
 
@@ -232,6 +248,7 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error(err);
     }
   });
+
 });
 </script>
 
