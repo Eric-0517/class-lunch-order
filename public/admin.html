@@ -20,16 +20,36 @@ th, td { border:1px solid #37b7ff; padding:5px; text-align:center; }
 #dailyStatsSection { margin-top:30px; }
 footer { margin-top:30px; font-size:0.8em; color:#888; }
 
-.input-field { width: 250px; padding: 8px 12px; margin: 5px 0; border-radius: 6px; border: 1px solid #37b7ff; background: #111824; color: #cfe9ff; }
-.login-btn { padding: 8px 20px; margin-top: 10px; border: none; border-radius: 6px; background-color: #4caf50; color: white; font-size: 14px; cursor: pointer; }
+/* 輸入框樣式 */
+.input-field {
+  width: 250px;
+  padding: 8px 12px;
+  margin: 5px 0;
+  border-radius: 6px;
+  border: 1px solid #37b7ff;
+  background: #111824;
+  color: #cfe9ff;
+}
+
+/* 登入按鈕 */
+.login-btn {
+  padding: 8px 20px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 6px;
+  background-color: #4caf50;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+}
 .login-btn:hover { opacity: 0.9; }
 
+/* 送單模式區塊 */
 #orderModeSection { margin-top:30px; border:1px solid #37b7ff; padding:15px; border-radius:6px; }
-#orderModeSection label { margin-right:10px; }
-#orderModeSection input[type="date"], #orderModeSection input[type="time"] { background:#111824; color:#cfe9ff; border:1px solid #37b7ff; border-radius:6px; padding:4px 8px; }
 #orderModeSection button { margin-top:10px; padding:6px 12px; border:none; border-radius:6px; background:#2196f3; color:white; cursor:pointer; }
 #orderModeSection button:hover { opacity:0.9; }
-#orderStatus { font-size:1.1em; margin-bottom:10px; font-weight:bold; }
+.active { color: #4caf50; font-weight: bold; }
+.inactive { color: #f44336; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -64,18 +84,21 @@ footer { margin-top:30px; font-size:0.8em; color:#888; }
 
     <button id="deleteAllBtn" class="delete-btn" style="margin-top:15px;">刪除全部訂單</button>
 
+    <!-- ===== 送單模式設定 ===== -->
     <div id="orderModeSection">
-      <h2>功能設定</h2>
-      <div id="orderStatus">狀態讀取中...</div>
-      <label><input type="checkbox" id="orderOpen"> 開放送單</label><br>
+      <h2>📦 送單模式設定</h2>
+      <p>目前狀態：<span id="orderStatusText" class="inactive">送單已關閉</span></p>
 
-      <h3 style="margin-top:15px;">定時設定</h3>
-      <label><input type="checkbox" id="scheduleEnabled"> 開啟定時設定</label><br>
-      <label>執行日期：<input type="date" id="scheduleDate"></label><br>
-      <label>執行時間：<input type="time" id="scheduleTime"></label><br>
+      <h3>手動模式</h3>
+      <button onclick="toggleOrder(true)">開啟送單</button>
+      <button onclick="toggleOrder(false)">關閉送單</button>
 
-      <button id="saveOrderModeBtn">儲存設定</button>
-      <div id="orderModeMsg" style="color:#ff9800; margin-top:10px;"></div>
+      <h3 style="margin-top:15px;">定時自動關閉</h3>
+      <input type="datetime-local" id="closeTime">
+      <br>
+      <button onclick="setAutoClose()">設定自動關閉</button>
+      <button onclick="clearAutoClose()">取消自動關閉</button>
+      <p id="scheduleInfo" style="margin-top:10px;color:#ff9800;"></p>
     </div>
   </div>
 </main>
@@ -85,158 +108,157 @@ document.addEventListener("DOMContentLoaded", () => {
   const loginSection = document.getElementById("loginSection");
   const adminPanel = document.getElementById("adminPanel");
   const loginBtn = document.getElementById("loginBtn");
-  const logoutBtn = document.getElementById("logoutBtn");
   const loginMsg = document.getElementById("loginMsg");
+  const logoutBtn = document.getElementById("logoutBtn");
 
-  const orderOpenCheckbox = document.getElementById("orderOpen");
-  const scheduleEnabled = document.getElementById("scheduleEnabled");
-  const scheduleDate = document.getElementById("scheduleDate");
-  const scheduleTime = document.getElementById("scheduleTime");
-  const saveOrderModeBtn = document.getElementById("saveOrderModeBtn");
-  const orderModeMsg = document.getElementById("orderModeMsg");
-  const orderStatus = document.getElementById("orderStatus");
-  const deleteAllBtn = document.getElementById("deleteAllBtn");
-  let autoCloseTimer = null;
+  let inactivityTimer = null;
+  const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10分鐘
+  let allOrders = [];
 
-  /** 登入 */
-  loginBtn.addEventListener("click", async () => {
-    const user = document.getElementById("adminUser").value.trim();
-    const pass = document.getElementById("adminPass").value.trim();
-    if (!user || !pass) {
-      loginMsg.textContent = "請輸入帳號與密碼";
-      return;
-    }
-    try {
-      const res = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ username: user, password: pass })
-      });
-      const data = await res.json();
-      if (data.success) {
-        loginSection.style.display = "none";
-        adminPanel.style.display = "block";
-        logoutBtn.style.display = "inline-block";
-        loginMsg.textContent = "";
-        loadOrderMode();
-      } else {
-        loginMsg.textContent = "登入失敗：" + (data.message || "帳號或密碼錯誤");
-      }
-    } catch (err) {
-      console.error("登入失敗", err);
-      loginMsg.textContent = "連線失敗，請稍後再試";
-    }
+  const orderStatusText = document.getElementById("orderStatusText");
+  const scheduleInfo = document.getElementById("scheduleInfo");
+  let orderOpen = false;
+  let autoCloseTime = null;
+
+  // ===== 自動登出 =====
+  function resetInactivityTimer() {
+    if(inactivityTimer) clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(() => {
+      alert("已超過10分鐘未操作，為保護資訊安全，系統已自動將您登出");
+      logout();
+    }, INACTIVITY_LIMIT);
+  }
+  ['click','mousemove','keydown','scroll'].forEach(evt => {
+    document.addEventListener(evt, resetInactivityTimer);
   });
-
-  /** 登出 */
-  logoutBtn.addEventListener("click", async () => {
-    await fetch("/api/admin/logout", { method: "POST" });
+  function logout() {
+    localStorage.removeItem("loginTime");
     adminPanel.style.display = "none";
     loginSection.style.display = "block";
     logoutBtn.style.display = "none";
-  });
-
-  /** 更新送單狀態顯示 */
-  function updateStatus(open) {
-    orderStatus.textContent = open ? "目前狀態：✅ 開放送單" : "目前狀態：❌ 未開放送單";
-    orderStatus.style.color = open ? "lightgreen" : "red";
   }
+  logoutBtn.addEventListener("click", logout);
 
-  /** 載入送單模式 */
-  async function loadOrderMode() {
-    try {
-      const res = await fetch("/api/orderMode");
-      const data = await res.json();
-      if (data.success && data.data) {
-        const mode = data.data;
-        orderOpenCheckbox.checked = mode.open ?? false;
-        scheduleEnabled.checked = mode.scheduleEnabled ?? false;
-        scheduleDate.value = mode.scheduleDate ?? "";
-        scheduleTime.value = mode.scheduleTime ?? "";
-        updateStatus(mode.open);
-        if (mode.scheduleEnabled && mode.scheduleDate && mode.scheduleTime) {
-          setupAutoClose(mode.scheduleDate, mode.scheduleTime);
-        }
-      }
-    } catch (err) {
-      console.error("載入失敗", err);
-    }
-  }
+  // ===== 登入功能 =====
+  loginBtn.addEventListener("click", async () => {
+    const username = document.getElementById("adminUser").value.trim();
+    const password = document.getElementById("adminPass").value.trim();
+    if(!username || !password){ loginMsg.textContent="請輸入帳號與密碼"; return; }
 
-  /** 儲存送單模式 */
-  saveOrderModeBtn.addEventListener("click", async () => {
-    const mode = {
-      open: orderOpenCheckbox.checked,
-      scheduleEnabled: scheduleEnabled.checked,
-      scheduleDate: scheduleDate.value,
-      scheduleTime: scheduleTime.value
-    };
     try {
-      const res = await fetch("/api/orderMode", {
+      const res = await fetch("/api/admin/login", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify(mode)
+        body:JSON.stringify({user:username, pass:password})
       });
       const data = await res.json();
       if(data.success){
-        orderModeMsg.textContent = "✅ 設定已儲存";
-        updateStatus(mode.open);
-        setTimeout(()=>orderModeMsg.textContent="",2000);
-        if(mode.scheduleEnabled && mode.scheduleDate && mode.scheduleTime){
-          setupAutoClose(mode.scheduleDate, mode.scheduleTime);
-        }
-      } else {
-        orderModeMsg.textContent = "❌ 儲存失敗：" + (data.message || "");
-      }
-    } catch(err) {
-      orderModeMsg.textContent = "❌ 連線失敗";
+        loginSection.style.display="none";
+        adminPanel.style.display="block";
+        logoutBtn.style.display = "inline-flex";
+        loginMsg.textContent="";
+        localStorage.setItem("loginTime", Date.now());
+        resetInactivityTimer();
+        loadOrders();
+        loadOrderMode();
+      } else loginMsg.textContent=data.message || "帳號或密碼錯誤";
+    } catch(err){
+      loginMsg.textContent = "登入失敗：" + err.message;
     }
   });
 
-  /** 自動關閉送單 */
-  function setupAutoClose(dateStr, timeStr){
-    if(autoCloseTimer) clearTimeout(autoCloseTimer);
-    const [hours, minutes] = timeStr.split(":").map(Number);
-    const target = new Date(dateStr);
-    target.setHours(hours, minutes, 0, 0);
-    const delay = target - new Date();
-    if(delay <= 0){
-      orderOpenCheckbox.checked = false;
-      updateStatus(false);
-      alert("送單時間已到，自動關閉送單！");
-      fetch("/api/orderMode/close", {method:"POST"});
-      return;
-    }
-    autoCloseTimer = setTimeout(()=>{
-      orderOpenCheckbox.checked = false;
-      updateStatus(false);
-      alert("送單時間已到，自動關閉送單！");
-      fetch("/api/orderMode/close", {method:"POST"});
-    }, delay);
+  // ===== 檢查是否已登入 =====
+  const savedLogin = localStorage.getItem("loginTime");
+  if(savedLogin && (Date.now() - savedLogin < INACTIVITY_LIMIT)){
+    loginSection.style.display="none";
+    adminPanel.style.display="block";
+    logoutBtn.style.display = "inline-flex";
+    resetInactivityTimer();
+    loadOrders();
+    loadOrderMode();
   }
 
-  /** 刪除全部訂單 */
-  deleteAllBtn.addEventListener("click", async () => {
-    if (!confirm("⚠️ 確定要刪除全部訂單嗎？此操作無法復原！")) return;
+  // ===== 訂單載入 =====
+  async function loadOrders(){
     try {
-      const res = await fetch("/api/orders/deleteAll", { method: "POST" });
+      const res = await fetch("/api/orders");
       const data = await res.json();
-      if (data.success) {
-        alert("✅ 已成功刪除全部訂單");
-        loadOrderMode();
-      } else {
-        alert("❌ 刪除失敗：" + (data.message || ""));
+      if(data.success){
+        allOrders = data.data;
       }
-    } catch (err) {
-      alert("❌ 刪除失敗，請稍後再試");
-      console.error(err);
+    } catch(err){ alert("載入訂單失敗：" + err.message); }
+  }
+
+  // ===== 送單模式功能 =====
+  window.toggleOrder = function(open) {
+    orderOpen = open;
+    saveOrderMode();
+    updateOrderUI();
+  }
+
+  window.setAutoClose = function() {
+    const input = document.getElementById("closeTime").value;
+    if(!input){ alert("請選擇日期與時間！"); return; }
+    autoCloseTime = new Date(input);
+    saveOrderMode();
+    updateOrderUI();
+    checkAutoClose();
+  }
+
+  window.clearAutoClose = function() {
+    autoCloseTime = null;
+    saveOrderMode();
+    updateOrderUI();
+  }
+
+  function checkAutoClose() {
+    if(autoCloseTime && new Date() >= autoCloseTime){
+      orderOpen = false;
+      autoCloseTime = null;
+      saveOrderMode();
+      updateOrderUI();
     }
-  });
+  }
+
+  function updateOrderUI() {
+    if(orderOpen){
+      orderStatusText.textContent = "送單已開啟";
+      orderStatusText.className = "active";
+    } else {
+      orderStatusText.textContent = "送單已關閉";
+      orderStatusText.className = "inactive";
+    }
+    if(autoCloseTime){
+      scheduleInfo.textContent = "⏰ 預計關閉時間：" + autoCloseTime.toLocaleString();
+    } else {
+      scheduleInfo.textContent = "";
+    }
+  }
+
+  function saveOrderMode() {
+    const mode = { open: orderOpen, autoCloseTime: autoCloseTime ? autoCloseTime.toISOString() : null };
+    localStorage.setItem("orderMode", JSON.stringify(mode));
+  }
+
+  function loadOrderMode() {
+    const saved = localStorage.getItem("orderMode");
+    if(saved){
+      try {
+        const mode = JSON.parse(saved);
+        orderOpen = mode.open ?? false;
+        autoCloseTime = mode.autoCloseTime ? new Date(mode.autoCloseTime) : null;
+      } catch(e){}
+    }
+    checkAutoClose();
+    updateOrderUI();
+  }
+
+  setInterval(checkAutoClose, 10000);
 });
 </script>
 
 <footer style="text-align:center; font-size:0.8em; color:#888; margin:20px 0;">
-  ※如遇錯誤頁面刷新即可，bug反饋/忘記帳號密碼，聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
+  ※如遇錯誤頁面刷新即可，需更改便當數量或其他東西請找相關股長處理，bug反饋/忘記帳號密碼，聯繫方式(Gmail)：s11316021@fsvs.khc.edu.tw
 </footer>
 
 </body>
