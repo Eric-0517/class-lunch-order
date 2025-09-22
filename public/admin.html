@@ -96,6 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const orderModeMsg = document.getElementById("orderModeMsg");
   const orderStatus = document.getElementById("orderStatus");
   const deleteAllBtn = document.getElementById("deleteAllBtn");
+
   let autoCloseTimer = null;
   let inactivityTimer = null;
   const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10 分鐘
@@ -107,10 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
       logout(true);
     }, INACTIVITY_LIMIT);
   }
-
-  ['click','mousemove','keydown','scroll'].forEach(evt => 
-    document.addEventListener(evt, resetInactivityTimer)
-  );
+  ['click','mousemove','keydown','scroll'].forEach(evt => document.addEventListener(evt, resetInactivityTimer));
 
   /** 登出 */
   async function logout(auto=false){
@@ -123,7 +121,6 @@ document.addEventListener("DOMContentLoaded", () => {
       alert("已超過10分鐘未操作，為保護資訊安全，系統已將您登出！");
     }
   }
-
   logoutBtn.addEventListener("click", () => logout(false));
 
   /** 登入 */
@@ -146,6 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem("loginTime", Date.now());
         resetInactivityTimer();
         loadOrderMode();
+        loadStats();
       } else {
         loginMsg.textContent="登入失敗：" + (data.message || "帳號或密碼錯誤");
       }
@@ -160,6 +158,7 @@ document.addEventListener("DOMContentLoaded", () => {
     logoutBtn.style.display="inline-block";
     resetInactivityTimer();
     loadOrderMode();
+    loadStats();
   }
 
   /** 更新送單狀態顯示 */
@@ -185,6 +184,25 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
     } catch(err){ console.error("載入送單模式失敗", err); }
+  }
+
+  /** 載入統計資料 */
+  async function loadStats() {
+    try {
+      const res = await fetch("/api/orders/stats");
+      const data = await res.json();
+      if(data.success){
+        document.getElementById("statsResult").innerHTML = JSON.stringify(data.allOrders, null, 2);
+        document.getElementById("dailyStatsResult").innerHTML = JSON.stringify(data.dailyOrders, null, 2);
+      } else {
+        document.getElementById("statsResult").textContent = "❌ 無法取得統計";
+        document.getElementById("dailyStatsResult").textContent = "❌ 無法取得統計";
+      }
+    } catch(err){
+      console.error(err);
+      document.getElementById("statsResult").textContent = "❌ 連線失敗";
+      document.getElementById("dailyStatsResult").textContent = "❌ 連線失敗";
+    }
   }
 
   /** 儲存送單模式 */
@@ -239,6 +257,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       if (data.success) {
         alert("✅ 已成功刪除全部訂單");
+        loadStats();
         loadOrderMode();
       } else {
         alert("❌ 刪除失敗：" + (data.message || ""));
