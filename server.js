@@ -70,43 +70,63 @@ app.delete("/api/orders/all", async (req,res)=>{
   res.json({ success:true, message:"已刪除全部訂單" });
 });
 
-// 新增統計 API
-app.get("/api/orders/stats", async (req, res) => {
-  try {
-    const orders = await Order.find();
-
-    const allOrders = {};   // 按座號統計
-    const dailyOrders = {}; // 按日期統計
-
-    orders.forEach(o => {
-      // 按座號統計
-      if (!allOrders[o.seat]) allOrders[o.seat] = {};
-      o.items.forEach(it => {
-        allOrders[o.seat][it.typeName] = (allOrders[o.seat][it.typeName] || 0) + 1;
-      });
-
-      // 按日期統計
-      const date = o.createdAt.toISOString().split("T")[0];
-      if (!dailyOrders[date]) dailyOrders[date] = 0;
-      dailyOrders[date] += 1;
-    });
-
-    res.json({ success: true, allOrders, dailyOrders });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+// 刪除單筆訂單
+app.post("/api/orders/delete/:id", async (req,res)=>{
+  const id = req.params.id;
+  if(!id) return res.status(400).json({ success:false, message:"缺少訂單ID" });
+  try{
+    await Order.findByIdAndDelete(id);
+    res.json({ success:true, message:"訂單已刪除" });
+  }catch(err){
+    res.status(500).json({ success:false, message: err.message });
   }
 });
 
-// -------------------- 管理員登入 --------------------
+// -------------------- 訂單統計 API --------------------
+app.get("/api/orders/stats", async (req, res) => {
+  try {
+    const orders = await Order.find().lean();
+
+    // 所有訂單明細
+    const allOrders = orders.map(o => ({
+      id: o._id,
+      seat: o.seat,
+      items: o.items.map(i => i.typeName || i.name || i),
+      createdAt: o.createdAt
+    }));
+
+    // 每日訂單統計
+    const dailyMap = {};
+    orders.forEach(o => {
+      const date = o.createdAt.toISOString().split("T")[0];
+      if (!dailyMap[date]) dailyMap[date] = 0;
+      dailyMap[date] += 1;
+    });
+    const dailyOrders = Object.entries(dailyMap)
+      .sort((a,b)=> b[0].localeCompare(a[0]))
+      .map(([date,count]) => ({ date, count }));
+
+    res.json({ success:true, allOrders, dailyOrders });
+
+  } catch(err){
+    res.status(500).json({ success:false, message: err.message });
+  }
+});
+
+// -------------------- 管理員登入/登出 --------------------
 app.post("/api/admin/login", (req,res)=>{
   const username = req.body?.username || "";
   const password = req.body?.password || "";
-
   if(username===ADMIN.username && password===ADMIN.password){
     req.session.admin = true;
     return res.json({ success:true });
   }
   return res.json({ success:false, message:"帳號或密碼錯誤" });
+});
+
+app.post("/api/admin/logout", (req,res)=>{
+  req.session.destroy();
+  res.json({ success:true });
 });
 
 // -------------------- 送單模式 --------------------
