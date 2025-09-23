@@ -237,28 +237,27 @@ document.addEventListener('change',updateTotal);
 
 /* === 送單按鈕鎖定 === */
 const submitBtn = document.getElementById('submit-order');
-function updateSubmitButton() {
-  const saved = localStorage.getItem("orderMode");
-  if(saved){
-    try{
-      const mode = JSON.parse(saved);
-      if(!mode.open){
-        submitBtn.classList.add('locked');
-        submitBtn.disabled = true;
-      } else {
-        submitBtn.classList.remove('locked');
-        submitBtn.disabled = false;
-      }
-    }catch(e){
+
+async function updateSubmitButton() {
+  try {
+    const res = await fetch('/api/orderMode');
+    const data = await res.json();
+    if(data.success && data.data.open){
       submitBtn.classList.remove('locked');
       submitBtn.disabled = false;
+    } else {
+      submitBtn.classList.add('locked');
+      submitBtn.disabled = true;
     }
-  } else {
+  } catch(e){
     submitBtn.classList.remove('locked');
     submitBtn.disabled = false;
   }
 }
+// 頁面載入時檢查送單狀態
 updateSubmitButton();
+// 每分鐘自動檢查一次送單狀態
+setInterval(updateSubmitButton, 60*1000);
 
 /* === 送單功能 === */
 submitBtn.addEventListener('click', async ()=>{
