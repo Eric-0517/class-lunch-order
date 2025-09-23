@@ -82,7 +82,8 @@ th {
 #orderModeSection input[type="checkbox"] {
   margin-right: 6px;
 }
-#orderModeSection input[type="datetime-local"] {
+#orderModeSection input[type="date"],
+#orderModeSection input[type="time"] {
   padding: 4px;
   border-radius: 4px;
   border: 1px solid #37b7ff;
@@ -109,7 +110,6 @@ th {
   margin: 15px 0 5px 0;
 }
 </style>
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5848732938514032" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -155,9 +155,16 @@ th {
       <!-- 自動關閉設定 -->
       <h3 style="margin-top:15px;">自動關閉送單</h3>
       <label>
-        關閉日期與時間：
-        <input type="datetime-local" id="closeDateTime">
+        <input type="checkbox" id="autoCloseEnable"> 啟用自動關閉
       </label><br>
+      <label>
+        關閉日期：
+        <input type="date" id="closeDate">
+      </label><br>
+      <label>
+        關閉時間：
+        <input type="time" id="closeTime">
+      </label>
 
       <!-- 目前狀態顯示 -->
       <p id="currentStatus" style="margin-top:5px; color:#ff9800;">目前送單狀態：未知</p>
@@ -183,7 +190,9 @@ document.addEventListener("DOMContentLoaded", () => {
   let allOrders = [];
 
   const orderOpenCheckbox = document.getElementById("orderOpen");
-  const closeDateTime = document.getElementById("closeDateTime");
+  const autoCloseEnable = document.getElementById("autoCloseEnable");
+  const closeDate = document.getElementById("closeDate");
+  const closeTime = document.getElementById("closeTime");
   const saveOrderModeBtn = document.getElementById("saveOrderModeBtn");
   const orderModeMsg = document.getElementById("orderModeMsg");
   const currentStatus = document.getElementById("currentStatus");
@@ -368,7 +377,17 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       if(data.success){
         orderOpenCheckbox.checked = data.data.open ?? false;
-        closeDateTime.value = data.data.closeDateTime ?? "";
+        autoCloseEnable.checked = data.data.autoCloseEnable ?? false;
+
+        if(data.data.closeDateTime){
+          const dt = new Date(data.data.closeDateTime);
+          closeDate.value = dt.toISOString().slice(0,10);
+          closeTime.value = dt.toTimeString().slice(0,5);
+        } else {
+          closeDate.value = "";
+          closeTime.value = "";
+        }
+
         updateOrderStatusDisplay(data.data);
       }
     } catch(err){
@@ -381,22 +400,27 @@ document.addEventListener("DOMContentLoaded", () => {
     let statusText = "❌未開放送單";
 
     if(mode.open){
-      if(mode.closeDateTime){
-        const closeTime = new Date(mode.closeDateTime);
-        if(now > closeTime){
-          statusText = "❌未開放送單";
-        } else statusText = "✅開放送單";
-      } else statusText = "✅開放送單";
+      if(mode.autoCloseEnable && mode.closeDateTime){
+        const closeTimeVal = new Date(mode.closeDateTime);
+        statusText = now > closeTimeVal ? "❌未開放送單" : "✅開放送單";
+      } else {
+        statusText = "✅開放送單";
+      }
     }
-
     currentStatus.textContent = "目前送單狀態：" + statusText;
   }
 
   saveOrderModeBtn.addEventListener("click", async ()=>{
+    const closeDateTimeValue = autoCloseEnable.checked && closeDate.value && closeTime.value
+        ? new Date(`${closeDate.value}T${closeTime.value}:00`).toISOString()
+        : null;
+
     const mode = {
       open: orderOpenCheckbox.checked,
-      closeDateTime: closeDateTime.value
+      autoCloseEnable: autoCloseEnable.checked,
+      closeDateTime: closeDateTimeValue
     };
+
     try {
       const res = await fetch("/api/orderMode", {
         method:"POST",
