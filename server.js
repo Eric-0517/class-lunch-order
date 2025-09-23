@@ -6,15 +6,22 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // MongoDB 設定
-const MONGO_URL = "mongodb+srv://admin:aa980517@cluster0.1yktzwj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"; // ⚠️ 請改成你的 MongoDB 連線字串
+const MONGO_URL = "mongodb+srv://admin:aa980517@cluster0.1yktzwj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"; // ⚠️ 改成你的 MongoDB 連線字串
 const DB_NAME = "bentoSystem";
 let db;
 
 // 連線 MongoDB
 MongoClient.connect(MONGO_URL)
-  .then(client => {
+  .then(async client => {
     db = client.db(DB_NAME);
     console.log("✅ 已連線 MongoDB");
+
+    // 確保 orderMode 有初始值
+    const mode = await db.collection("config").findOne({ key: "orderMode" });
+    if (!mode) {
+      await db.collection("config").insertOne({ key: "orderMode", open: false });
+      console.log("⚙️ 初始化 orderMode = false");
+    }
   })
   .catch(err => console.error("❌ MongoDB 連線失敗:", err));
 
@@ -28,9 +35,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 // 管理員帳密
 const ADMIN_USER = "admin";
 const ADMIN_PASS = "12345678";
-
-// 送單模式（true = 開放, false = 未開放）
-let orderMode = { open: false };
 
 // -------------------- 訂單相關 --------------------
 
@@ -97,18 +101,31 @@ app.post('/api/admin/login', (req, res) => {
 // -------------------- 送單開放狀態 --------------------
 
 // GET /api/orderMode - 取得送單狀態（前端用於按鈕顏色）
-app.get('/api/orderMode', (req, res) => {
-  res.json({ success: true, data: orderMode });
+app.get('/api/orderMode', async (req, res) => {
+  try {
+    const mode = await db.collection("config").findOne({ key: "orderMode" });
+    res.json({ success: true, data: { open: mode?.open ?? false } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "讀取狀態失敗", error: err.message });
+  }
 });
 
 // POST /api/orderMode - 修改送單狀態 (管理端)
-app.post('/api/orderMode', (req, res) => {
-  const { open } = req.body;
-  if (typeof open !== "boolean") {
-    return res.status(400).json({ success: false, message: "請傳 boolean" });
+app.post('/api/orderMode', async (req, res) => {
+  try {
+    const { open } = req.body;
+    if (typeof open !== "boolean") {
+      return res.status(400).json({ success: false, message: "請傳 boolean" });
+    }
+    await db.collection("config").updateOne(
+      { key: "orderMode" },
+      { $set: { open } },
+      { upsert: true }
+    );
+    res.json({ success: true, message: `送單狀態已更新為 ${open ? '開放' : '未開放'}` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "更新失敗", error: err.message });
   }
-  orderMode.open = open;
-  res.json({ success: true, message: `送單狀態已更新為 ${open ? '開放' : '未開放'}` });
 });
 
 // -------------------- 啟動伺服器 --------------------
