@@ -1,8 +1,22 @@
 const express = require('express');
 const path = require('path');
-const app = express();
+const { MongoClient } = require('mongodb');
 
+const app = express();
 const PORT = process.env.PORT || 3000;
+
+// MongoDB 設定
+const MONGO_URL = "mongodb+srv://admin:aa980517@cluster0.1yktzwj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"; // ⚠️ 請改成你的 MongoDB 連線字串
+const DB_NAME = "bentoSystem";
+let db;
+
+// 連線 MongoDB
+MongoClient.connect(MONGO_URL)
+  .then(client => {
+    db = client.db(DB_NAME);
+    console.log("✅ 已連線 MongoDB");
+  })
+  .catch(err => console.error("❌ MongoDB 連線失敗:", err));
 
 // 解析 JSON 與表單
 app.use(express.json());
@@ -11,28 +25,24 @@ app.use(express.urlencoded({ extended: true }));
 // 靜態檔案
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 訂單暫存（測試用）
-let orders = [];
-
 // 管理員帳密
 const ADMIN_USER = "admin";
 const ADMIN_PASS = "12345678";
 
 // 送單模式（true = 開放, false = 未開放）
-// 前端可用來控制按鈕顏色，但後端不再阻擋送單
 let orderMode = { open: false };
 
 // -------------------- 訂單相關 --------------------
 
 // POST /api/order - 接收訂單
-app.post('/api/order', (req, res) => {
+app.post('/api/order', async (req, res) => {
   try {
     const { seat, items } = req.body;
     if (!seat || !items) {
       return res.status(400).json({ success: false, message: '座號或訂單資料缺失' });
     }
 
-    orders.push({ seat, items, createdAt: new Date() });
+    await db.collection("orders").insertOne({ seat, items, createdAt: new Date() });
     res.json({ success: true, message: '訂單已送出，請至歷史訂單頁面確認！' });
   } catch (err) {
     res.status(500).json({ success: false, message: '伺服器錯誤', error: err.message });
@@ -40,22 +50,36 @@ app.post('/api/order', (req, res) => {
 });
 
 // GET /api/orders - 查看全部訂單
-app.get('/api/orders', (req, res) => {
-  res.json({ success: true, data: orders });
+app.get('/api/orders', async (req, res) => {
+  try {
+    const orders = await db.collection("orders").find().toArray();
+    res.json({ success: true, data: orders });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "讀取訂單失敗", error: err.message });
+  }
 });
 
 // DELETE /api/orders - 刪除指定座號訂單
-app.delete('/api/orders', (req, res) => {
-  const { seat } = req.body;
-  if (!seat) return res.status(400).json({ success: false, message: "缺少座號" });
-  orders = orders.filter(o => o.seat !== seat);
-  res.json({ success: true, message: `已刪除座號 ${seat} 的訂單` });
+app.delete('/api/orders', async (req, res) => {
+  try {
+    const { seat } = req.body;
+    if (!seat) return res.status(400).json({ success: false, message: "缺少座號" });
+
+    await db.collection("orders").deleteMany({ seat });
+    res.json({ success: true, message: `已刪除座號 ${seat} 的訂單` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "刪除失敗", error: err.message });
+  }
 });
 
 // DELETE /api/orders/all - 刪除全部訂單
-app.delete('/api/orders/all', (req, res) => {
-  orders = [];
-  res.json({ success: true, message: "已刪除全部訂單" });
+app.delete('/api/orders/all', async (req, res) => {
+  try {
+    await db.collection("orders").deleteMany({});
+    res.json({ success: true, message: "已刪除全部訂單" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "刪除全部訂單失敗", error: err.message });
+  }
 });
 
 // -------------------- 管理員相關 --------------------
