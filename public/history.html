@@ -15,14 +15,12 @@
     th, td { border:1px solid #37b7ff; padding:8px; text-align:center; }
     th { background:#111824; }
 
-    /* 列印專用樣式 */
     @media print {
       header, footer, .print-btn, .home-link { display:none !important; }
       body { background:white; color:black; }
       table, th, td { border:1px solid black; color:black; }
     }
 
-    /* 友善列印按鈕區域 */
     .print-container {
       margin-top: 10px;
       text-align: left;
@@ -38,8 +36,6 @@
     }
     .print-btn:hover { opacity:0.9; }
   </style>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5848732938514032"
-     crossorigin="anonymous"></script>
 </head>
 <body>
   <header>
@@ -66,7 +62,6 @@
       </tbody>
     </table>
 
-    <!-- 新增的友善列印按鈕 -->
     <div class="print-container">
       <button class="print-btn" onclick="window.print()">🖨 友善列印</button>
     </div>
@@ -81,7 +76,6 @@
         tbody.innerHTML = '';
 
         if(data.success && data.data.length){
-          // 按座號分組
           const seatMap = {};
           data.data.forEach(order => {
             const seat = order.seat;
@@ -89,20 +83,11 @@
             seatMap[seat].push(order);
           });
 
-          // 每個座號依序輸出
           Object.keys(seatMap).sort((a,b)=>a-b).forEach(seat=>{
             const orders = seatMap[seat];
-            // 初始每天留空
-            const weekDays = {
-              "禮拜一": "",
-              "禮拜二": "",
-              "禮拜三": "",
-              "禮拜四": "",
-              "禮拜五": ""
-            };
+            const weekDays = { "禮拜一":"", "禮拜二":"", "禮拜三":"", "禮拜四":"", "禮拜五":"" };
             let totalAmount = 0;
 
-            // 填入該座號的選擇
             orders.forEach(o=>{
               o.items.forEach(it=>{
                 const dayKey = it.day || it.weekDay || it.weekday;
