@@ -45,9 +45,14 @@ function loadOrders() {
 
         d.data.forEach(o => {
           if(!ordersBySeat[o.seat]) ordersBySeat[o.seat] = {};
-          ordersBySeat[o.seat][o.typeName] = (ordersBySeat[o.seat][o.typeName]||0)+1;
-          if(o.typeName !== "今日不訂購") totalAmount += 70;
-          totalCount +=1;
+
+          // o.items 是一個陣列，逐一計數
+          o.items.forEach(item=>{
+            ordersBySeat[o.seat][item] = (ordersBySeat[o.seat][item]||0)+1;
+            if(item !== "今日不訂購") totalAmount += 70;
+          });
+
+          totalCount += 1;
         });
 
         let html = `<table>
@@ -69,13 +74,16 @@ function loadOrders() {
         });
 
         html += `<tr>
-                  <td colspan="${mealTypes.length+2}"><strong>總訂單數：${totalCount}，總金額：${totalAmount} 元</strong></td>
+                  <td colspan="${mealTypes.length+2}">
+                    <strong>總訂單數：${totalCount}，總金額：${totalAmount} 元</strong>
+                    <button id="deleteAllBtn" style="margin-left:20px;color:red;">刪除全部訂單</button>
+                  </td>
                  </tr>`;
         html += `</table>`;
 
         statsResult.innerHTML = html;
 
-        // 綁定刪除事件
+        // 綁定刪除單筆事件
         document.querySelectorAll('.delete-btn').forEach(btn=>{
           btn.addEventListener('click', ()=>{
             if(!confirm(`確定要刪除座號 ${btn.dataset.seat} 的所有訂單嗎？`)) return;
@@ -87,6 +95,20 @@ function loadOrders() {
               });
           });
         });
+
+        // 綁定刪除全部事件
+        const deleteAllBtn = document.getElementById("deleteAllBtn");
+        if(deleteAllBtn){
+          deleteAllBtn.addEventListener("click", ()=>{
+            if(!confirm("⚠️ 確定要刪除全部訂單嗎？")) return;
+            fetch(`/api/orders/all`, { method:'DELETE' })
+              .then(res=>res.json())
+              .then(r=>{
+                if(r.success) loadOrders();
+                else alert(r.message);
+              });
+          });
+        }
 
       } else {
         statsResult.innerHTML = `<div style="color:red">${d.message}</div>`;
