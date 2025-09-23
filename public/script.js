@@ -73,8 +73,31 @@ function calcTotal(){
   totalPriceEl.textContent = total;
 }
 
+// 🔒 根據後台送單狀態鎖定按鈕
+const submitBtn = document.getElementById("submitBtn");
+async function updateSubmitButton() {
+  try {
+    const res = await fetch("/api/orderMode");
+    const data = await res.json();
+    if(data.success && data.data.open){
+      submitBtn.disabled = false;
+      submitBtn.classList.remove("locked");
+    } else {
+      submitBtn.disabled = true;
+      submitBtn.classList.add("locked");
+    }
+  } catch(err){
+    submitBtn.disabled = false;
+    submitBtn.classList.remove("locked");
+  }
+}
+updateSubmitButton();
+// 每分鐘自動刷新狀態
+setInterval(updateSubmitButton, 60*1000);
+
 // 送出訂單
-document.getElementById("submitBtn").addEventListener("click", ()=>{
+submitBtn.addEventListener("click", ()=>{
+  if(submitBtn.disabled) return;
   if(!confirm("確認便當是否訂購無誤！")) return;
   const seat = seatNumberSelect.value;
   if(!seat) return alert("請選擇座號");
@@ -106,7 +129,6 @@ document.getElementById("submitBtn").addEventListener("click", ()=>{
   .then(data => {
     if(data.success){
       alert("訂單已送出");
-      // 清空所有選項與明細
       menuDiv.querySelectorAll("input[type=checkbox]").forEach(cb=>{
         cb.checked = false; 
         cb.dispatchEvent(new Event("change"));
